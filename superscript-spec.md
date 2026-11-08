@@ -115,6 +115,9 @@ in its exact input and state its expected result separately.
 | `\^a^`                | `^a^`                                            | escaped                     |
 | `` `x^2^` ``          | `<code>x^2^</code>`                              | code span first             |
 | `$x^2^$`              | math `x^2^`                                      | math first                  |
+| `<span title="^a^">x</span>` | `<span title="^a^">x</span>`              | carets in an inline HTML attribute are literal |
+| `<span>^a^</span>`    | `<span><sup>a</sup></span>`                      | inline HTML tokens do not hide ordinary text between tags |
+| `<div>^a^</div>`      | `<div>^a^</div>`                                 | an HTML block is handled by the existing block parser |
 | `*^a^*`               | `<em><sup>a</sup></em>`                          | nesting                     |
 | `^*a*^`               | `<sup><em>a</em></sup>`                          | nesting                     |
 | `~~^a^~~`             | `<del><sup>a</sup></del>`                        | strikethrough outside       |
@@ -480,6 +483,11 @@ no universal rendering guarantee is made for renderers without superscript.
   - `> ^x [^a⏎> b^] y` (a footnote name wrapped in a blockquote, no
     superscript);
   - a superscript in a table cell, in a heading, and with a hard break inside;
+  - `<span title="^a^">x</span>` (no superscript from the attribute),
+    `<span>^a^</span>` (superscript in inline text), and `<div>^a^</div>`
+    (no superscript inside an HTML block); assert both the pinned renderer
+    result and the fork AST, and ensure formatter fixtures preserve the
+    attribute value while retaining the superscript in inline text;
   - `![^a^](/u)`, which must have no superscript node.
 - Formatter specs in `tests/specs/TextDecoration/`, one file per config:
   - `TextDecoration_Superscript.txt` (default config): each example is
