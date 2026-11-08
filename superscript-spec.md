@@ -33,22 +33,33 @@ The target is the released pulldown-cmark 0.13 with the options the CodeChat
 Editor uses: `Options::all()` without smart punctuation
 ([`markdown_to_html`](https://github.com/bjones1/CodeChat_Editor/blob/main/server/src/processing.rs)).
 Among other things, that turns on superscript, subscript, old-style footnotes
-and wikilinks. 0.13.4 and 0.13.6 give the same result for every example below.
+and wikilinks. The normative reference is pulldown-cmark **0.13.6**, configured
+with `Options::all() & !Options::ENABLE_SMART_PUNCTUATION`. The supplied
+examples were reported as matching 0.13.4 and 0.13.6; this revision does not
+claim an independent execution of them. Reference results and repository
+function descriptions must be verified when building acceptance fixtures.
 
 pulldown-cmark's rule is short: **`^` is parsed like `_`, and where `_` would
 make emphasis or strong emphasis, `^` makes a superscript** (with one
-difference, see Known differences below). In detail, using the
+difference, see Known differences below). The syntax rules describe the
+reference renderer. The fork follows them except for the explicitly enumerated
+compatibility differences below. In detail, using the
 [CommonMark emphasis rules](https://spec.commonmark.org/0.31.2/#emphasis-and-strong-emphasis):
 
 1. **Delimiter run.** A run of `^` that is not escaped (`\^`) and is not inside
-   a code span, inline math, an autolink, raw html, or a link destination or
-   title. pulldown-cmark also reads superscripts in image alt text, but this
+   a code span, math token, an autolink, an inline HTML token, or a link
+   destination or title. Carets inside `<span title="^a^">` are literal;
+   ordinary text in `<span>^a^</span>` remains eligible for superscript.
+   HTML blocks follow the existing block parser. pulldown-cmark also reads superscripts in image alt text, but this
    parser never parses alt text, so it never makes a node there. Formatting is
-   still safe: the formatter only changes whitespace in alt text (for example
+   required to preserve its target-renderer interpretation. The described
+   formatter changes whitespace in alt text (for example
    `![x ^a␣␣⏎b^](/u)` becomes `![x ^a b^](/u)`), and swapping one kind of
-   whitespace for another does not change what opens or closes (formatting
-   rule 3).
-2. **Opener and closer.** Same as for `_`. A run can open if the character
+   whitespace for another preserves neighbor whitespace classification.
+   Reference fixtures must still verify the resulting alt text; that
+   observation alone is not a complete formatting-safety proof.
+2. **Opener and closer.** Same as for `_`. Before and after refer to characters
+   outside the complete unescaped delimiter run. A run can open if the character
    after it exists and is not whitespace, and the character before it is
    missing, whitespace or punctuation. A run can close if the character before
    it exists and is not whitespace, and the character after it is missing,
@@ -71,7 +82,7 @@ difference, see Known differences below). In detail, using the
    footnote, while `[^a^][x]`, `[^a^][^]` and `[^a^][^ ]` do not. A `!`
    before it does not change this. `name` is scanned as raw text up to the
    first `]`, and that `]` must be the one that closes the bracket. So in
-   `[^a `]` b]` the first `]` is inside a code span, the scan stops there, and
+   `` [^a `]` b] `` the first `]` is inside a code span, the scan stops there, and
    there is no footnote (the same holds for a `]` in math or an autolink).
    `name` is text: no `^` in it opens or closes a superscript. Otherwise the
    bracket is read like any other, so `[^a^ b`, `[^a [b] c^]`, `[^a^](/u)`
@@ -80,8 +91,13 @@ difference, see Known differences below). In detail, using the
    same as a link stops earlier links: in `[b [^c] d](/u)` and
    `![b [^c] d](/u)` there is no link and no image.
 
-The results below come from running pulldown-cmark 0.13.6 with those options
-(the middle column is the html it writes; `⏎` is a line break):
+The supplied results below describe pulldown-cmark 0.13.6 with those options
+(the middle column describes its rendering; `⏎` is a line break). Unless a
+fixture explicitly supplies a definition, footnote and link-reference labels
+are undefined. These are reference expectations, not automatically fork AST
+expectations; the documented compatibility differences take precedence for
+the fork. A fixture that supplies a definition must include that definition
+in its exact input and state its expected result separately.
 
 | Input                 | Result                                           | Why                         |
 | --------------------- | ------------------------------------------------ | --------------------------- |
@@ -153,9 +169,13 @@ as text: `^a [[b^]] c^` is `<sup>a <a href="b^">b^</a> c</sup>`, and
 
 Third, this parser makes a footnote node for a defined `name` even when `(…)`
 or `[…]` follows, where pulldown-cmark makes a link or reads the brackets as
-text: with `[^a]: n` defined, `[^a](/u)` is `<a href="/u">^a</a>`, and
-`^p [^a][x] q^` is `^p [<sup>a][x] q</sup>`. This predates superscript
-support.
+text. With `[^a]: n` included in the input and no definition for `[x]`, the
+reference renderer reads `[^a](/u)` as `<a href="/u">^a</a>` and
+`^p [^a][x] q^` as `^p [<sup>a][x] q</sup>`. The fork instead recognizes the
+defined footnote at `[^a]`; its separate expected AST must record that node
+and the resulting treatment of the surrounding carets and suffix. This
+predates superscript support. Test both defined and undefined variants with
+complete source inputs.
 
 Fourth, rule 6 drops only the `^` delimiters inside a footnote name; `*` and
 `_` there still pair, as they do today. pulldown-cmark pairs none of them, so
@@ -168,11 +188,16 @@ rule for braces and does not let a `$` before a digit close. So in
 `x ^y $a^ {b$` pulldown-cmark reads no math and can pair `^y` with `a^`,
 while this parser reads `$a^ {b$` as math.
 
-We accept these differences: these inputs are rare, and a superscript is
-written back as it was. The only rewrite that can change what a `^` run
-next to such text does is a hard break rewrite, and formatting rule 3 keeps
-a hard break after a `^` run as it was written. So at worst the formatter is
-more careful than it needs to be there.
+These are intentional parser compatibility differences, not proof that all
+formatting is safe. For each difference, formatting must preserve the reference renderer's
+interpretation or match a precise established baseline exception under Scope
+and baseline. New feature-induced regressions are not accepted. Compare the reference
+renderer's interpretation before and after formatting independently of the
+fork's own reparse check. Reference comparisons are acceptance tests; the
+formatter need not invoke pulldown-cmark at runtime. The existing single-tilde
+subscript mismatch must have an exact per-fixture exception, not a blanket
+exemption for every input containing `~`.
+
 
 ## Data structures
 
@@ -190,21 +215,108 @@ pub enum TextDecorationKind {
 Its `span` covers its delimiters, and `children` are the nodes between them.
 The debug json writes it as `"decoration": "Superscript"`, like the other kinds.
 
-The number of `^` characters a superscript was written with (1 or 2) is not
-stored. It is the distance from the start of its `span` to the start of its
-first child, since the content starts right after the delimiter. The content is
-never empty, because an opener cannot be followed by whitespace or the end of
-the text.
+Each node consumes one or two caret characters from each side, including
+nodes nested within longer runs. Preserve that consumed width on generation.
+Width may be derived from `first_child.span.start - decoration.span.start`
+only after verifying these repository invariants:
 
-## Parsing
+* Spans use the existing repository unit and endpoint convention; record both
+  explicitly in fixtures rather than assuming bytes or characters.
+* The first child's source span starts immediately after the opening delimiter,
+  including escapes, entities, code spans, and nested decorations.
+* A matched superscript always has a child, and its computed width is 1 or 2.
+  Opener eligibility alone does not establish the child invariant.
 
-All changes are in `src/parser/inline.rs`. Because `^` follows the `_` rules,
+If these invariants do not hold, store the consumed delimiter width explicitly
+using the repository's conventions. Both normal and preservation generation
+paths must use the selected representation. Do not read the entire contiguous
+caret run as one node's delimiter: `^^^a^^^` has nested delimiter ownership.
+
+
+## Scope and baseline
+
+| Category | Required treatment |
+| --- | --- |
+| Superscript parsing and formatting | Implement the specified nodes, delimiter ownership, preservation rules, and acceptance fixtures |
+| Explicit footnote bracket changes | Implement rule 6's enclosing-link/image behavior, including inputs without superscript candidates, with separate regression coverage |
+| Other existing parser/formatter differences | Preserve the established baseline and prevent additional regressions caused by this feature; general repair is out of scope |
+
+The reference renderer remains the compatibility target. Intentional fork AST
+differences do not require the formatter to produce the same AST as the
+reference. Existing reference-rendering changes made by the unmodified
+formatter, including single-tilde normalization, must be captured as precise
+baseline exceptions. An existing parser difference does not automatically
+permit a new formatter-induced rendering difference.
+
+For each relevant baseline exception, record complete input, configuration,
+unmodified formatter output, and reference interpretations before and after.
+Use a known pre-change revision. Do not regenerate that baseline from the
+implementation under test. Require no additional semantic differences beyond
+the recorded baseline except the explicit in-scope behavior changes above.
+If baseline evidence is unavailable, do not assume an exemption; use source
+preservation for the uncertain region and record the missing evidence.
+
+## Required rewrite-safety strategy
+
+The formatter must select a safe behavior for each candidate rewrite. A passing
+fork-based reparse check does not establish safety where the fork cannot see
+the reference renderer's interpretation.
+
+1. Identify compatibility-sensitive regions conservatively from source context,
+   not only recognized superscript nodes. Cover the documented mixed caret/tilde
+   lower-bound cases, wikilinks, heading attributes, footnote/link interactions,
+   footnote-label emphasis interactions, and differing math boundaries.
+2. A transformation in such a region is permitted only when a documented
+   preservation rule establishes its safety for the applicable source context.
+   State the rule's preconditions, protected region, and allowed changes. The
+   hard-break and separator rules are examples, not proof that all other
+   transformations are safe.
+3. Where the fork cannot establish safety and no applicable preservation rule
+   exists, preserve the containing source region using the fallback scope below.
+   A conservative detector may protect more source than strictly necessary.
+4. Document detector coverage and fallback paths before enabling rewrites in
+   these contexts. If the detector cannot reliably isolate a region, expand
+   protection to its enclosing block. Detection must include contexts that the
+   fork represents as literal text or opaque tokens.
+
+Reference acceptance tests validate these rules and their preconditions;
+example coverage alone is not the runtime safety mechanism. No runtime
+pulldown-cmark dependency is required. This strategy is scoped to avoiding new
+regressions from this feature, not implementing every missing extension.
+
+### Fallback regions
+
+Semantic preservation takes precedence over requested wrapping width and
+formatting preferences. Fallback restores a source region large enough to
+preserve the relevant block and inline interpretation. Do not retain only a
+superscript node while rewriting its unsafe neighbors.
+
+| Context | Minimum fallback region |
+| --- | --- |
+| Paragraph | Complete paragraph source with original internal breaks; include affected container prefixes where necessary |
+| Heading | Complete heading block, including ATX markers or setext underline and any attribute syntax |
+| Table cell | Complete cell source when cell boundaries and table structure are unchanged; otherwise the complete table block |
+| List or blockquote content | Complete affected child block with its original container-prefix context; expand to the item, quote, or enclosing list when boundaries or nesting could change |
+
+If a rewrite changes heading syntax, container prefixes, or block boundaries,
+restore the enclosing block rather than its inline content alone. Preserve
+original protected source except for the explicitly configured output line-ending
+style where safe. The fallback mechanism may retain a broader region. Avoid
+mixing restored source with already emitted prefixes from a rejected candidate;
+buffer or otherwise discard that candidate before emitting fallback. If safety
+requires a larger scope, continue expanding to a stable enclosing region.
+
+## Suggested implementation: parsing
+
+The following edit locations are implementation guidance, subject to a
+repository audit; behavioral requirements and fixtures take precedence.
+Proposed parser changes are in `src/parser/inline.rs`. Because `^` follows the `_` rules,
 most of the code is reused as is:
 
 - `parse()` sends `^` to `parse_emphasis_delimiter`, the same as `*`, `_` and
   `~`.
 - `flanking()` already treats every character other than `*` and `~~` like
-  `_`, so it needs no change.
+  `_`, so it may be reusable; verify character classification and run handling.
 - `parse_close_bracket()`: where a link or image bracket turns out not to be
   a link and is a footnote reference by rule 6, it drops the `^` delimiters
   after its `[`, so none of them pairs. It decides this itself rather than
@@ -225,25 +337,27 @@ most of the code is reused as is:
   clears its whole bracket stack there, images included. Without this,
   `^a [b^ [^c] d](/u)` is a link here and `![b [^c] d](/u)` an image, with no
   superscript, while pulldown-cmark reads plain text and a superscript.
-- `find_opener()` needs no change.
+- `find_opener()` is a candidate for reuse; verify its behavior against the
+  required syntax and documented exceptions before deciding whether it changes.
 - `wrap_emphasis()` uses one or two characters from each side, as it does for
   `_`, and makes a `Superscript` decoration either way.
 
-## Formatting
+## Suggested implementation: generation
 
-All changes are in `src/generation/generate.rs`:
+Proposed generation changes are in `src/generation/generate.rs`:
 
 - `gen_text_decoration()` writes `^` or `^^`. Its last match arm is a
   catch-all that writes `~~`, so the new case must come before it.
 - `decoration_delimiter()` (`resolve`) returns the written delimiter for a
-  superscript, measured as described in Data structures. So does
+  superscript, using the width representation selected in Data structures. So does
   `written_delimiter()`, which `decoration_delimiter()` returns instead while
   decorations are preserved. Reading the delimiter off the file text is wrong
   for `^^^a^^^`.
 - `unescaped_delimiter_runs()`, `run_can_open()` and `run_can_close()` read
   `^` runs too, with the `_` rules, so they count in `pairable` (rule 4).
-- `decoration_keeps_its_delimiters()` returns false for a superscript (rule 3
-  below).
+- Inspect `decoration_keeps_its_delimiters()` and the associated print paths.
+  A superscript-specific result may be needed to implement the separator
+  requirements below; select it from verified helper semantics, not its name.
 - In a heading, a line break between a superscript and Chinese or Japanese
   text must come out as a space (rule 3 below). Whether newlines are off is
   only known at print time (`with_no_new_lines`, generate.rs:773), so the
@@ -252,30 +366,41 @@ All changes are in `src/generation/generate.rs`:
   pushes `new_line_or_space_if_newlines_disabled()` instead of a bare
   `NewLine`, and the path that joins such text in a heading with the default
   config (today `_中_⏎字⏎===` becomes `# _中_字`) does the same.
-- A hard break that comes right after a `^` run is written as it was, with
-  its backslash or its spaces, whatever `hardBreakKind` says (rule 3 below).
+- A hard break whose source marker begins immediately after a caret run
+  retains its original marker spelling, regardless of `hardBreakKind`.
+  Apply the exact source-boundary and scope rules in rule 3 below.
 - `tests/commonmark_spec_check.rs` renders decorations to html; it needs a
   `sup` case.
 
-Rules:
+## Required formatting behavior
 
 1. A superscript is written with the same number of `^` it was written with
    (see Data structures), then its content, then the same delimiter again.
    The content is formatted like the content of emphasis, so it may be
    wrapped at its spaces.
-2. Wrapping cannot break a superscript. A line break only replaces a space or
+2. Wrapping must preserve block structure as well as inline superscript
+   pairing. For example, wrapping `^alpha # beta^` before `#` must not
+   introduce a heading. Existing safeguards against introducing headings,
+   lists, block quotes, and fences apply inside superscript content. The
+   following neighbor-classification observations are not a complete proof
+   of wrapping safety. A line break only replaces a space or
    goes between two Chinese or Japanese characters (`wrapUnspacedScripts`).
    An opener is never followed by a space, a closer is never preceded by one,
    and `^` is not such a character, so the `^` characters stay attached to a
    word.
-3. Whether a `^` run opens or closes depends only on whether its neighbors
-   are whitespace, punctuation or something else. Wrapping swaps a space for a
+3. Whether a `^` run is eligible to open or close depends on whether its neighbors
+   are whitespace, punctuation or something else. Eligibility does not alone
+   determine pairing, which also depends on precedence and delimiter processing.
+   Wrapping swaps a space for a
    line break or back (both whitespace), and changing `*` to `_` or back swaps
    one punctuation character for another, so neither changes it. Three cases
    do. `wrapUnspacedScripts` drops a line break between a decoration and Chinese
    or Japanese text on either side, so `^中^⏎字` would become `^中^字`, which
-   is not a superscript. So a line break next to a superscript is never
-   dropped. The same break is also lost in a setext heading, which is
+   is not a superscript. A soft line break beside a superscript must retain
+   a whitespace separator. It may remain a line break or become a space where
+   the formatting context requires one, but must not become an empty string.
+   Hard breaks follow the separate marker-preservation rule below. The same
+   separator is also lost in a setext heading, which is
    written as an ATX heading on one line. That happens with the default
    config (`_中_⏎字⏎===` becomes `# _中_字` today) and, through
    `keeps_break_between()`, with `wrapUnspacedScripts` off and `textWrap` set
@@ -287,15 +412,25 @@ Rules:
    which is a superscript, `x ^\⏎b^` with `doubleSpace` would become
    `x ^␣␣⏎b^`, which is not, and `^^a .^␣␣⏎b` would become `^^a .^\⏎b`, where
    the closer can now open too and the rule of three stops it pairing. So a
-   hard break right after a `^` run is written as it was. This also covers
-   the known differences above, where this parser cannot see what
-   pulldown-cmark would pair, so rule 4's check could not catch a change.
+   hard-break marker is preserved when its marker begins immediately after
+   a source caret run: either a backslash following the run or the complete
+   trailing-space sequence following it. Preserve the backslash spelling or
+   the exact trailing-space count, subject only to the configured line-ending
+   style. For trailing-space markers, adjacency is measured from the first
+   trailing space, not from the character immediately before the newline.
+   This protection deliberately applies conservatively to literal and escaped
+   caret runs when followed by an actual hard-break node. It does not create
+   hard breaks inside code or math; their source-sensitive content follows
+   existing preservation rules. Reference tests must additionally cover every
+   known difference: the fork's own reparse check cannot establish preservation
+   of reference-renderer pairing.
 4. Where a paragraph has more than one decoration, or a decoration and a hard
    break, the formatter already prints its output, parses it again, and checks
    that the decorations are the same (`decorations_need_checking` and
    `reads_back_decorations` in `src/generation/generate.rs`). A superscript is
    a decoration, so it counts toward that condition and is compared in the
-   check with no extra code. A `^` run that can open or close starts the
+   check; verify that the existing comparison handles the new enum kind,
+   nesting, and literal text rather than assuming no additional code is needed. A `^` run that can open or close starts the
    check too, like a `*` or `_` run (`pairable`), as a second guard for the
    hard break case of rule 3. A paragraph with a single superscript, no hard
    break and no other pairable run is not checked, which is why rule 3 must
@@ -316,12 +451,18 @@ rule 3 keeps a hard break right after a `^` run as it was written
 Chinese or Japanese text. And a footnote reference inside brackets now stops
 them from becoming a link or image (rule 6), so `[b [^c] d](/u)` is no longer
 a link node, which matches how pulldown-cmark renders it. All of these are
-rare, and none changes how the text renders.
+observable behavior changes. Reference-renderer preservation must be tested;
+no universal rendering guarantee is made for renderers without superscript.
 
 ## Tests
 
-- `tests/parser_specs/superscript.txt`: the syntax tree for every example in
-  the tables above, plus:
+- `tests/parser_specs/superscript.txt`: the expected fork syntax tree for
+  every example in the tables above, plus the cases below. Reference fixtures
+  separately assert the pinned renderer's interpretation. For documented
+  differences, record both expectations explicitly; do not copy a reference
+  result into a fork fixture. Every defined/undefined-label variant includes
+  the complete corresponding definition context in its exact source input.
+  Additional cases:
   - leftover runs: `^^a^`, `^^^a^^`, `^^^^a^^^^`;
   - a defined footnote inside a superscript, and `[^a^]`, `[^1] x^2^`,
     `^x [^a b^] c` and `^x [^a^ b] c^` with and without a footnote
@@ -338,8 +479,8 @@ rare, and none changes how the text renders.
   - `![^a^](/u)`, which must have no superscript node.
 - Formatter specs in `tests/specs/TextDecoration/`, one file per config:
   - `TextDecoration_Superscript.txt` (default config): each example is
-    unchanged apart from `*` emphasis, which the default `emphasisKind`
-    writes as `_` (`*^a^*` becomes `_^a^_`); `x ^␣␣⏎b^`, `^^a .^␣␣⏎b`,
+    assigned an exact expected output. The default `emphasisKind`
+    writes `*` emphasis as `_` (`*^a^*` becomes `_^a^_`); `x ^␣␣⏎b^`, `^^a .^␣␣⏎b`,
     `*x ^␣␣⏎y [^a* b] z^` and `x ^␣␣⏎y $a^ {b$` keep their two spaces;
     `^中^⏎字⏎===` becomes `# ^中^ 字`;
   - `TextDecoration_Superscript_TextWrap_Always.txt`: a long superscript is
@@ -356,13 +497,154 @@ rare, and none changes how the text renders.
     `^中^⏎字⏎===` becomes `# ^中^ 字` and `字⏎^中^⏎===` becomes `# 字 ^中^`.
 - The existing tests, CommonMark spec check and corpus check must still pass.
 
-## Open questions
+## Compatibility decisions
 
-- Should reading superscripts be an option that is off by default, matching
-  pulldown-cmark, where `ENABLE_SUPERSCRIPT` is off by default? The
-  Configuration section lists what turning it on changes.
-- Should we follow pulldown-cmark master (superscript inside a word) now,
-  before it is released?
-- The subscript spec (PR #1) follows Pandoc: `H~2~O` is a subscript and
-  `~a b~` is not. pulldown-cmark 0.13 does the opposite. Both specs should
-  target the same renderer.
+* Parsing is always enabled; there is no new option.
+* Released pulldown-cmark 0.13.6 with the options above is normative. Master
+  branch behavior is informative future work, not an alternative for this change.
+* Superscript and subscript must use the CodeChat renderer as their shared
+  compatibility target. The reported Pandoc-based behavior in subscript
+  [PR #1](https://github.com/bjones1/dprint-plugin-markdown/pull/1) is a
+  coordination issue to resolve with that team before integrated acceptance.
+  This spec does not itself change or approve changes to their implementation.
+
+## Required footnote behavior and label information
+
+This feature also changes enclosing link/image recognition around footnote
+references, including documents containing no superscript delimiters. This is
+an intentional behavior change within this spec, not merely a superscript
+implementation detail. Give it separate regression fixtures with defined and
+undefined footnotes and with no carets except the footnote marker.
+
+An enclosing bracket preceding the recognized footnote must not subsequently
+create a link or image where rule 6 prohibits one. Its source remains available
+as literal text. Carets within the recognized footnote label cannot participate
+in superscript pairing; the intentional existing emphasis difference remains.
+Delimiters outside the label must retain the scope and processing order required
+by the expected AST. Later independent links/images remain eligible normally.
+
+Stack clearing, bracket inactivation, and removal of delimiter candidates are
+candidate mechanisms, not normative behavior. Choose operations that produce
+the required trees. Do not assume clearing a bracket stack and marking entries
+inactive are interchangeable; assert their observable effects in nested cases.
+
+The implementation must distinguish the following information when applying
+rule 6. These are conceptual views, not a requirement to add three structures,
+a new source-map subsystem, or a second label parser. Reuse existing source
+slices, offsets, and label helpers where they preserve the required distinctions:
+
+* **Source label:** the original source spelling with source-position mapping.
+  Use it to determine escaping and the raw closing-bracket candidate; do not
+  treat decoded entities as source bracket delimiters.
+* **Logical label source:** source spelling across continuation lines after
+  block-container prefixes are removed, retaining escapes, entities, and a
+  mapping back to source offsets. This is what “label text” means in the
+  parser guidance; it is not concatenated rendered inline text.
+* **Lookup label:** the existing parser's representation for resolving defined
+  footnotes. Do not silently replace its normalization as part of this feature.
+
+Before implementation, record the pinned renderer's exact treatment of
+blankness, tabs and Unicode whitespace, escaped brackets, and entities in both
+`name` and a following `[label]`. Implement those verified outcomes; do not
+choose decoded versus source blankness by assumption. Whether the following
+label has a definition must be included in the fixtures. Verify that a raw
+closing candidate corresponds to the structural closing bracket as required
+by rule 6, including candidates inside code, math, or autolinks.
+
+Required additional inputs (backslashes below are literal source characters):
+
+```markdown
+[^a\]b^]
+[^a\[b^]
+[^&#32;]
+[^a^][&#32;]
+[^a^][x]
+> ^x [^a
+> b^] y
+- ^x [^a
+  b^] y
+```
+
+Add actual tab-only labels and Unicode-whitespace labels; record their code
+points in the fixture description. These cases require pinned reference
+results, not guessed expected trees.
+
+## Acceptance requirements
+
+Parser fixtures state exact inputs and expected ASTs. Assert nesting,
+leftover literal carets, source spans, and delimiter ownership for `^^a^`,
+`^^^a^^`, `^^^a^^^`, and `^^^^a^^^^`. Verify span recovery using:
+
+```markdown
+^\*a^
+^&amp;^
+^`a`^
+^*a*^
+^^^a^^^
+```
+
+Formatter fixtures state exact configuration and expected output for each
+case, including heading conversion. Do not claim all examples are unchanged:
+normal emphasis rewriting and explicitly specified heading transformations
+remain permitted. Cover literal caret text in paragraphs with no superscript
+nodes as well as recognized superscripts.
+
+Run equivalent LF and CRLF fixtures; AST structure must agree after accounting
+for source offsets and the configured output newline style. Define `⏎` as a
+logical line ending and `␣` as one ASCII space in documentary examples. Actual
+fixture inputs contain real line endings and spaces.
+
+Within Scope and baseline, compare each parser's own input/output
+interpretations independently. Preserve
+block kinds, inline kinds and nesting, literal text, heading levels and
+attributes, link/image destinations and titles, footnote reference identities,
+code/math contents, and hard breaks. These properties must retain their
+interpretation within each parser. Source-marker changes such as setext-to-ATX
+heading conversion remain permitted when those properties are preserved. Ordinary spaces and soft breaks may be
+normalized where wrapping permits it; do not normalize source-sensitive
+code/math content or hard breaks. Source offsets may change after formatting
+and are checked against each input separately. Reference comparisons may use
+normalized events rather than exact HTML strings. Enumerate the precise
+expected compatibility exceptions per fixture; never skip an entire fixture
+because it contains unsupported syntax.
+
+Add hard-break boundary fixtures with two and three actual trailing spaces,
+backslash markers, literal/escaped caret runs, and carets inside code or math.
+Assert exact marker spelling and space counts where protection applies, and
+assert that code/math content is not reclassified as hard-break syntax. Include
+LF and CRLF variants and both `hardBreakKind` settings.
+
+For every known difference, test the documented safety detector, applicable
+preservation rules, and fallback scope, including cases represented only as
+literal text or opaque tokens in the fork. Assert that later unaffected blocks
+can still format normally. Test supported transformations, including
+`emphasisKind`, `hardBreakKind`, wrapping/joining, heading conversion, and
+`wrapUnspacedScripts`, including relevant combinations. Include block-syntax
+wrap hazards and separate footnote bracket-inactivation regressions.
+
+Apply Required rewrite-safety strategy and its context-specific fallback
+regions. Include paragraph, heading, table-cell, and list/blockquote fallback
+fixtures, including rejected heading conversion and changed block boundaries.
+A fallback may exceed the requested width. Test this outcome explicitly and
+verify idempotence under each formatter configuration.
+
+## Preimplementation checks and completion
+
+Before implementation:
+
+* Verify the proposed repository helper semantics, span invariants, and actual
+  fallback support. Suggested function names, return values, stack operations,
+  and source line references do not override behavioral requirements.
+* Record pinned-reference outcomes for the additional label cases and the
+  separate expected fork ASTs.
+* Record relevant pre-change baseline exceptions and the explicit footnote
+  behavior changes; do not expand this task into general formatter repair.
+* Document the conservative detector coverage, preservation-rule preconditions,
+  and fallback region for each compatibility-sensitive context. Conceptual label
+  views may share existing structures; require only the information necessary
+  for correct behavior.
+
+Completion requires the explicit fixtures, existing tests, CommonMark spec
+check, and corpus check to pass with baseline exceptions and authorized behavior
+changes identified. Unrelated failures must be reported against their baseline
+rather than silently accepted or repaired outside the feature scope.
