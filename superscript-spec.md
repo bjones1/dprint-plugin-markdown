@@ -117,6 +117,8 @@ in its exact input and state its expected result separately.
 | `$x^2^$`              | math `x^2^`                                      | math first                  |
 | `*^a^*`               | `<em><sup>a</sup></em>`                          | nesting                     |
 | `^*a*^`               | `<sup><em>a</em></sup>`                          | nesting                     |
+| `~~^a^~~`             | `<del><sup>a</sup></del>`                        | strikethrough outside       |
+| `^~~a~~^`             | `<sup><del>a</del></sup>`                        | strikethrough inside        |
 | `[^1] and x^2^`       | footnote `1`, then `and x^2^`                    | rule 6                      |
 | `[^a^]`               | footnote `a^`                                    | rule 6                      |
 | `^x [^a b^] c`        | `^x `, footnote `a b^`, ` c`                     | rule 6                      |
@@ -463,6 +465,8 @@ no universal rendering guarantee is made for renderers without superscript.
   result into a fork fixture. Every defined/undefined-label variant includes
   the complete corresponding definition context in its exact source input.
   Additional cases:
+  - `~~^a^~~` and `^~~a~~^` (superscript nested with strikethrough in both
+    directions);
   - leftover runs: `^^a^`, `^^^a^^`, `^^^^a^^^^`;
   - a defined footnote inside a superscript, and `[^a^]`, `[^1] x^2^`,
     `^x [^a b^] c` and `^x [^a^ b] c^` with and without a footnote
@@ -482,6 +486,7 @@ no universal rendering guarantee is made for renderers without superscript.
     assigned an exact expected output. The default `emphasisKind`
     writes `*` emphasis as `_` (`*^a^*` becomes `_^a^_`); `x ^␣␣⏎b^`, `^^a .^␣␣⏎b`,
     `*x ^␣␣⏎y [^a* b] z^` and `x ^␣␣⏎y $a^ {b$` keep their two spaces;
+    `~~^a^~~` and `^~~a~~^` keep both decoration pairs;
     `^中^⏎字⏎===` becomes `# ^中^ 字`;
   - `TextDecoration_Superscript_TextWrap_Always.txt`: a long superscript is
     wrapped at its spaces and joined again;
