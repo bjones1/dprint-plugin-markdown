@@ -15,7 +15,9 @@ Draft submission
 * Anuar Kurmanov: ran the compiler test on macOS and argued for keeping
   `subscript` and `superscript` as separate options, matching pulldown-cmark's
   separate `ENABLE_SUBSCRIPT` and `ENABLE_SUPERSCRIPT` flags.
-* Dias Lesbay: (Dias's contributions)
+* Dias Lesbay: drafted the "Subscript support" specification, verified its
+  parser expectations against pulldown-cmark, and ran and triaged the nine LLM
+  review rounds.
 
 ### Compiler test
 
