@@ -17,24 +17,24 @@ A heading has an attribute block when all of these hold:
 The block grammar:
 
 ```
-block = "{" [":"] *ws attr *(1*ws attr) *ws "}"
+block = "{" [":"] *SP attr *(1*SP attr) *SP "}"
 attr  = "#" name / "." name / name "=" value / name
 value = DQUOTE *dq-char DQUOTE / "'" *sq-char "'" / 1*char
 ```
 
-Here `ws` is one whitespace character; `char` is any character except whitespace, `{`, `}`, `=`, `"`, `'`, and `\`; `dq-char` is any character except `"`; `sq-char` is any character except `'`; and `name` is one or more `char`s not starting with `#`, `.`, or `:`.
+Here `SP` is one space; `char` is any character except whitespace, `{`, `}`, `=`, `"`, `'`, and `\`; `dq-char` is any character except `"`; `sq-char` is any character except `'`; and `name` is one or more `char`s not starting with `#`, `.`, or `:`.
 
-A quoted value ends at the next quote of the same kind. A backslash inside it does not escape the quote. A quoted value may contain braces, whitespace, and Markdown syntax.
+A quoted value ends at the next quote of the same kind. A backslash inside it does not escape the quote. A quoted value may contain braces, whitespace, and Markdown syntax. Outside quoted values, a tab makes the block invalid, since the formatter keeps tabs in heading text today.
 
 Examples of invalid blocks: `{}`, `{:}`, `{::x}`, `{#}`, `{.}`, `{key=}`, `{a="b}`, `{a=b=c}`, `{x\y}`.
 
 ## Output
 
 - The heading text is formatted as it is today. It is followed by exactly one space and the block. The space replaces the spaces and tabs between the text and the block. Hashes at the end of the text are not escaped, because the block follows them on the line.
-- Inside the block, each run of whitespace outside quoted values becomes one space. Everything else in the block is written exactly as in the source: the optional colon, attribute order, duplicates, whitespace in quoted values, and any Markdown-like text, which is not escaped or reformatted.
+- Inside the block, each run of spaces outside quoted values becomes one space. Everything else in the block is written exactly as in the source: the optional colon, attribute order, duplicates, whitespace in quoted values, and any Markdown-like text, which is not escaped or reformatted.
 - The block is never broken across lines and never starts a line. The space before it is not a place where a line can break, so where the heading text wraps, the existing wrapping treats the block as part of the text's last word. The final line may exceed `lineWidth`.
-- ATX headings stay on one line, as today. Level 1 and 2 headings become Setext only where the formatter already converts them, judged from the line as written with the block, and the underline is sized with the existing rule, counting the block as part of its line.
-- Formatting the output again with the same configuration produces the same output.
+- ATX headings stay on one line, as today. Level 1 and 2 headings become Setext only where the formatter already converts them, with its existing check made on the heading content including the block, and the underline is sized with the existing rule, counting the block as part of its line.
+- Formatting the output again with the same configuration produces the same output, except where today's formatting of the heading text is already unstable.
 
 ## Examples
 
@@ -59,7 +59,7 @@ With `heading.kind: atx`:
 
 # Title {}
 
-# `code {#id}`
+# Title `{#id` }
 
 # Title{#id}
 ```
@@ -83,7 +83,7 @@ Output:
 
 # Title {}
 
-# `code {#id}`
+# Title `{#id` }
 
 # Title{#id}
 ```
