@@ -25,7 +25,8 @@ Configuration
 1. Add the boolean field `subscript` (default `false`) to `Configuration` in
    [`types.rs`](../configuration/types.rs); parsing and formatting read it. The
    field is internal until step 2.
-2. Once the open question is settled, add the key to the resolver, the JSON
+2. Once open question 1 is settled (a shared flag would also change the table
+   above), add the key to the resolver, the JSON
    schema and the README. The README entry warns that turning the option on
    changes how an existing `~x~` is read.
 
@@ -62,7 +63,8 @@ is unchanged.
    length-1 closer needs nothing more. A run that can both close and open
    closes first, which is why `~a~b~` is `<sub>a</sub>b~`. (This is
    `delim_run_can_open` and `delim_run_can_close` in pulldown-cmark's
-   `firstpass.rs`.) A `~~` run keeps the rules of `flanking` in [`inline.rs`](inline.rs).
+   `firstpass.rs`.) A `~~` run uses CommonMark flanking and may sit within a word (`flanking` in
+   [`inline.rs`](inline.rs)).
 6. `\~` is a literal tilde, never a delimiter; `\\~` is a literal backslash then
    a delimiter.
 7. Pairs nest, so `~a ~b~ c~` is a subscript within a subscript. A closer left
@@ -84,7 +86,8 @@ Formatting
 
 1. Subscript is written with a single `~`.
 2. A literal `~` is written `\~` if, bare, it would change the tree when the
-   output is parsed again; otherwise it is left as is (`a ~ b ~ c`).
+   output is parsed again (decided by re-parsing the candidate output and
+   comparing trees); otherwise it is left as is (`a ~ b ~ c`).
 3. Text wrapping breaks a line only at whitespace, so a delimiter touching
    non-whitespace is never split from it and `H~2~O` never becomes `H~2` and
    `~O`. A space inside the content (`~a b~`) is a break point. A break is
@@ -129,7 +132,7 @@ Parser, with `subscript` on; "text" means no tag.
 | `~This ~~is not stricken.~` | `<sub>This ~~is not stricken.</sub>` | 3, 4  |
 | `~~This ~is~~ stricken.~`   | `<del>This ~is</del> stricken.~`     | 3, 4  |
 | `~a ~b~ c~`                 | `<sub>a <sub>b</sub> c</sub>`        | 7     |
-| `~a~b~`                     | `<sub>a</sub>b~`                     | 7     |
+| `~a~b~`                     | `<sub>a</sub>b~`                     | 5     |
 | `` ~`a~b`~ ``               | `<sub><code>a~b</code></sub>`        | 8     |
 | `~*em*~`                    | `<sub><em>em</em></sub>`             | 8     |
 | `*~x~*`                     | `<em><sub>x</sub></em>`              | 8     |
@@ -203,4 +206,5 @@ Open questions
    parsing rule 10 now states. The eight rows citing rule 10 were measured by
    building commit `1c1a312` and rendering each case with `ENABLE_SUBSCRIPT`
    and `ENABLE_STRIKETHROUGH`. Formatter rows for these cases are still to be
-   written.
+   written, including whether a literal `*` beside a subscript delimiter needs
+   escaping, since rule 10 changes how it pairs.

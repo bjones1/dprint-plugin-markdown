@@ -20,7 +20,7 @@ Draft submission
   `subscript` and `superscript` as separate options, matching pulldown-cmark's
   separate `ENABLE_SUBSCRIPT` and `ENABLE_SUPERSCRIPT` flags.
 * Dias Lesbay: drafted the "Subscript support" specification, verified its
-  parser expectations against pulldown-cmark, and ran and triaged the nine LLM
+  parser expectations against pulldown-cmark, and ran and triaged the ten LLM
   review rounds.
 
 ### Compiler test
@@ -69,9 +69,12 @@ rustup install.
 | 6     | 15       | A closer without a same-length opener disables earlier openers (`~a~~b~` is text); a wrapped `~~~` break is refused, not escaped |
 | 7     | 9        | Punctuation and run-length rules derived from pulldown-cmark source; configuration split into two steps; more formatter rows |
 | 8     | 14       | Wrong claim fixed: this formatter writes `~a~` as `~~a~~`; Parsing applies only with `subscript` on |
-| 9     | 22       | Open question on overlap with emphasis added; the rest, mostly requests for more test rows, not applied |
+| 9     | 22       | Open question on overlap with emphasis added (later settled by Amir as rule 10); the rest, mostly requests for more test rows, not applied |
+| 10    | 18       | `~~` flanking stated explicitly; formatting rule 2 decided by re-parsing and comparing trees; configuration step 2 tied to open question 1; one rule tag fixed; formatter escaping of `*` beside a delimiter noted as open |
 
-Findings were counted from each review's numbered and bulleted items.
+Findings were counted from each review's numbered and bulleted items. Rounds 9
+and 10 mostly ask for more test rows; most of those were not applied, to keep
+the specification short.
 
 ### Last LLM review
 
@@ -80,42 +83,38 @@ session with `Review the section named "Subscript support" in
 src/parser/subscript-spec.md. Do not edit any files; return the review as your
 final message.` produced the following output.
 
-> The tilde rules and test tables are mostly consistent.
+> The spec is mostly consistent and its references check out. I did not rebuild pulldown-cmark at 1c1a312, so the HTML expectations are unverified.
 >
-> **Gaps and ambiguities that would block implementation**
+> **Substantive issues**
 >
-> 1. Interaction with emphasis is unspecified (`~a *b~ c*`, `*a ~b* c~`, `**a ~b** c~`). Add a rule and rows.
-> 2. Rule 5 leaves "punctuation" undefined; the `a~“b”~` row depends on Unicode punctuation, not only ASCII.
-> 3. `~~` intraword behavior is deferred to `flanking` in `inline.rs`; the `a~~x~~b` row cites rule 4 but depends on rule 5.
-> 4. The "off" behavior is asymmetric and under-tested; no off-mode rows for nesting or `~a~b~`.
-> 5. Rule 4's "makes every opener before it unavailable" would be clearer as a short stack description.
-> 6. Rule 2's fence definition does not cover tabs, list-item indentation or nested containers such as `- ~~~`.
+> 1. Rule 10 has no formatter coverage, though it is called "settled". Formatting rule 2 only covers escaping `~`, but `~a *b~ c*` parses as `<sub>a *b</sub> c*`, so the formatter must also decide whether the literal `*` needs escaping. Add formatter rows for all eight rule-10 cases and state the `*` escaping rule.
+> 2. The rule 5 `flanking` sentence is ambiguous; state the `~~` rule explicitly.
+> 3. The formatting-rule-2 "would change the tree" test is underspecified; a stated algorithm such as re-parse and compare is needed, and rule 5 should share one definition.
+> 4. Open question 1 blocks configuration step 2 but isn't visible there; a shared sub/superscript flag would also change the configuration table and the `NH~4~^+^` row.
+>
+> **Rule and table inconsistencies**
+>
+> * The `~a~b~` row cites rule 7, but the behavior is in rule 5.
+> * Rows citing "8, 10" show nesting, not interleaving, so "eight rows citing rule 10" needs rewording.
+> * Add the hard-break backslash to rule 9's text.
+> * Say what `~~~` does adjacent to a pair (`~a ~~~ b~`); not in the test cases.
+> * Add a `- ~~~` fence row for list items.
+> * State how the newline notation in the tables is encoded.
 >
 > **Missing test cases**
 >
-> * A formatter row for the wrapping refusal before a `~~~` run.
-> * Strikethrough inside subscript and the reverse.
-> * Table cells with `~` next to pipes.
-> * Hard-break and soft-break formatting when the next line starts with `~`.
-> * Escaped-tilde round trips with the option off.
-> * Run lengths above two inside nesting (`~a ~~~ b~`).
-> * Reference-style links and footnote labels containing `~`.
-> * A formatter row for `[~x~](u)`.
+> * Subscript inside a table cell with an escaped pipe.
+> * Reference links with subscript in the label (`[~x~][r]`).
+> * Unicode punctuation openers other than quotes.
+> * `subscript` off with `~x~` adjacent to `~~`.
+> * Formatter rows for headings, lists, blockquotes and tables.
+> * A line-wrap case where a break would put `~` at the next line start (`aaaa ~x~`).
 >
-> **Internal inconsistencies and wording**
+> **Formatting nits**
 >
-> * Some "text" rows cite only one rule where rule 5 also applies; cite all or drop the column.
-> * Say which rules were verified by running the commit and which by reading source.
-> * Make clear that configuration step 2 is blocked on the open question.
-> * Mark the `NH~4~^+^` row as temporary.
-> * State formatting rule 2 as a decision procedure (re-parse the candidate and compare).
+> * Some table rows are not aligned and one line is very long.
+> * State once that `U+00A0` is a literal no-break space.
 >
-> **Presentation**
->
-> * The raw `<h1 id=...>` heading versus setext headings.
-> * Some lines run past the wrap width and break table alignment.
-> * Spell out "run length" consistently.
->
-> **Verdict:** careful and mostly self-consistent, with strong parser tables. It needs a defined interaction with emphasis, a defined punctuation set and intraword `~~` rule, and the missing formatter wrapping and escape rows.
+> **Overall:** the parser half is solid and well sourced. The formatter half and the interleaving cases need work before implementation starts.
 
-Only the open question on emphasis overlap was applied after this review.
+The review above is shortened from the full output. After it, the following were applied: items 2, 3 and 4 of the substantive issues, the `~a~b~` rule tag, and a note on the `*` escaping question. The requests for more test rows were not applied.
