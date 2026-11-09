@@ -72,6 +72,12 @@ is unchanged.
    start inside one and end outside it, and can't cross a block boundary. A code span's content, a link destination, an autolink and
    an inline HTML tag are never scanned for delimiters.
 9. Content may span a soft line break.
+10. Subscript and emphasis never partially overlap. Where their delimiters
+    interleave, the pair whose closer comes first takes its content, and the
+    other delimiter is text: `~a *b~ c*` is `<sub>a *b</sub> c*`, and
+    `*a ~b* c~` is `<em>a ~b</em> c~`. A pair that falls wholly within
+    another nests, in either order (rule 8). Measured by running commit
+    `1c1a312`.
 
 Formatting
 ----------
@@ -149,6 +155,14 @@ Parser, with `subscript` on; "text" means no tag.
 | `NH~4~^+^`                  | `NH<sub>4</sub>^+^`                  | 5     |
 | `(~x~)`                     | `(<sub>x</sub>)`                     | 5     |
 | `a~~x~~b`                   | `a<del>x</del>b`                     | 4     |
+| `~a *b~ c*`                 | `<sub>a *b</sub> c*`                 | 10    |
+| `*a ~b* c~`                 | `<em>a ~b</em> c~`                   | 10    |
+| `**a ~b** c~`               | `<strong>a ~b</strong> c~`           | 10    |
+| `~a **b~ c**`               | `<sub>a **b</sub> c**`               | 10    |
+| `~*a~*`                     | `<sub>*a</sub>*`                     | 10    |
+| `*~a*~`                     | `<em>~a</em>~`                       | 10    |
+| `~a *b* c~`                 | `<sub>a <em>b</em> c</sub>`          | 8, 10 |
+| `*a ~b~ c*`                 | `<em>a <sub>b</sub> c</em>`          | 8, 10 |
 
 The `NH~4~^+^` row changes to `<sup>` once superscript lands.
 
@@ -185,5 +199,8 @@ Open questions
 1. Should `subscript` instead be one flag shared with superscript? Settle this
    with the superscript team before configuration step 2, since renaming the key
    later breaks configurations.
-2. How do subscript and emphasis resolve when they overlap (`~a *b~ c*`,
-   `*a ~b* c~`)? Not yet checked against pulldown-cmark; add rows once it is.
+2. Settled: subscript and emphasis resolve by whichever pair closes first, as
+   parsing rule 10 now states. The eight rows citing rule 10 were measured by
+   building commit `1c1a312` and rendering each case with `ENABLE_SUBSCRIPT`
+   and `ENABLE_STRIKETHROUGH`. Formatter rows for these cases are still to be
+   written.

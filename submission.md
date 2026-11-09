@@ -11,7 +11,11 @@ Draft submission
 ### Contributions
 
 * Jacob Timmons: (Jacob's contributions)
-* Amir Adilov: (Amir's contributions)
+* Amir Adilov: ran the compiler test on macOS, settled open question 2 by
+  building pulldown-cmark at the pinned commit `1c1a312` and measuring how
+  subscript and emphasis resolve when they overlap, which supplied parsing
+  rule 10 and its eight test rows, and argued for two options by measuring
+  that `ENABLE_SUPERSCRIPT` alone leaves `~` untouched.
 * Anuar Kurmanov: ran the compiler test on macOS and argued for keeping
   `subscript` and `superscript` as separate options, matching pulldown-cmark's
   separate `ENABLE_SUBSCRIPT` and `ENABLE_SUPERSCRIPT` flags.
@@ -31,7 +35,13 @@ current git repo."
 
 #### Amir Adilov
 
-(Summarized LLM output)
+Rust was not installed, so it was installed with rustup; the toolchain is
+pinned to 1.98.0 by `rust-toolchain.toml`, which rustup fetched on the first
+build. `cargo build` succeeded and `cargo test` passed 192 tests plus 2
+doc-tests, with no failures. The project is a library with no binary, so
+`format_text` was called from a scratch crate to check that it runs: it
+collapsed the extra spaces in `Chemistry:   H~2~O  and   ~~gone~~` and
+rewrote `*` bullets as `-`.
 
 #### Anuar Kurmanov
 
