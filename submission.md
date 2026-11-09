@@ -12,7 +12,9 @@ Draft submission
 
 * Jacob Timmons: (Jacob's contributions)
 * Amir Adilov: (Amir's contributions)
-* Anuar Kurmanov: (Anuar's contributions)
+* Anuar Kurmanov: ran the compiler test on macOS and argued for keeping
+  `subscript` and `superscript` as separate options, matching pulldown-cmark's
+  separate `ENABLE_SUBSCRIPT` and `ENABLE_SUPERSCRIPT` flags.
 * Dias Lesbay: (Dias's contributions)
 
 ### Compiler test
@@ -31,7 +33,10 @@ current git repo."
 
 #### Anuar Kurmanov
 
-(Summarized LLM output)
+Rust was not installed, so it was installed with rustup (`rustc` 1.98.0). Then
+`cargo build` succeeded and `cargo test` passed 182 tests across the unit and
+integration test binaries, all spec-file suites, and 2 doc-tests, with no
+failures. The project is a library, so there is no binary to run.
 
 #### Dias Lesbay
 
