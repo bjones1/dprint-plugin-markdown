@@ -10,7 +10,7 @@ Draft submission
 
 ### Contributions
 
-* Jacob Timmons: (Jacob's contributions)
+* Jacob Timmons: Independently developed and reviewed a Pandoc-style Markdown subscript specification, investigated existing parser/formatter behavior, and corrected a whitespace-related semantic-preservation issue through three review rounds.
 * Amir Adilov: ran the compiler test on macOS, settled open question 2 by
   building pulldown-cmark at the pinned commit `1c1a312` and measuring how
   subscript and emphasis resolve when they overlap, which supplied parsing
@@ -31,7 +31,7 @@ current git repo."
 
 #### Jacob Timmons
 
-(Summarized LLM output)
+In my Windows Project 2 checkout, Codex verified that cargo build --locked and cargo test --locked passed, including parser, formatter, and documentation tests. Execution was verified through library tests; the WebAssembly release build was not tested. This verification was on my individual branch, not the team branch.
 
 #### Amir Adilov
 
