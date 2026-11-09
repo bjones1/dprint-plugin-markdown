@@ -11,7 +11,7 @@ In this specification, whitespace means spaces (U+0020) and tabs (U+0009).
 A heading has an attribute block when all of these hold:
 
 1. The heading content ends with a block, ignoring trailing whitespace. The heading content is what the formatter's parser reads as the heading's text, so an ATX closing sequence after the block (`# Title {#id} ##`) is already gone, while hashes before the block (`# Title ## {#id}`) are heading text. The block starts at the `{` from which the rest of the content matches the grammar below; there can be at most one. When there is no such `{`, or rule 2 or 3 rejects it, the heading has no block, and an earlier `{...}` followed by other text is never used instead.
-2. That `{` is not inside any inline element that starts before it, such as a code span, link, emphasis, or inline HTML.
+2. That `{` is not inside any inline element that starts before it. In this specification, an inline element is a construct with delimiters of its own: a code span, emphasis, strong emphasis, strikethrough, link, image, autolink, footnote reference, inline HTML, or inline math.
 3. Heading text with at least one non-whitespace character comes before the block, separated from it by one or more spaces, and the whole block, from `{` to `}`, is on the line where that text ends. A block that starts or continues on another line of a Setext heading is not recognized, because joining the lines could change what the text before it reads as (a `+` line would become a list item). A block touching the text is not recognized either: Python-Markdown requires the space, and dialects with inline attributes apply a touching block to the element before it, such as a link or a `[span]`.
 
 The block grammar:
