@@ -12,7 +12,7 @@ A heading has an attribute block when all of these hold:
 
 1. The heading content ends with a block, ignoring trailing whitespace. The heading content is what CommonMark reads as the heading's text, so an ATX closing sequence after the block (`# Title {#id} ##`) is already gone, while hashes before the block (`# Title ## {#id}`) are heading text. The block starts at the leftmost `{` from which the rest of the content matches the grammar below. When there is no such `{`, the heading has no block, and an earlier `{...}` followed by other text is never used instead.
 2. That `{` is not escaped (preceded by an odd number of backslashes) and is not inside any inline element that starts before it, such as a code span, link, emphasis, or inline HTML.
-3. Heading text with at least one non-whitespace character comes before the block. Whitespace may separate them, including line breaks of a Setext heading. The text may touch the `{` only when it ends with plain text. A block touching the end of a link, image, code span, emphasis, or other inline element is not recognized, because dialects with inline attributes apply it to that element.
+3. Heading text with at least one non-whitespace character comes before the block, separated from it by whitespace, which may include the line breaks of a Setext heading. A block touching the text is not recognized: Python-Markdown requires the space, and dialects with inline attributes apply a touching block to the element before it, such as a link or a `[span]`.
 
 The block grammar:
 
@@ -30,13 +30,11 @@ Examples of invalid blocks: `{}`, `{:}`, `{::x}`, `{#}`, `{.}`, `{key=}`, `{a="b
 
 ## Output
 
-- The heading text is formatted as it is today. It is followed by exactly one space and the block. The space replaces all whitespace between the text and the block, including any line break, in every `textWrap` mode. Hashes at the end of the text are not escaped, because the block follows them on the line.
-- Inside the block, each run of whitespace outside quoted values becomes one space. Inside quoted values, each line break, together with the spaces and tabs around it, becomes one space. Everything else is written exactly as in the source: the optional colon, attribute order, duplicates, other whitespace in quoted values, and any Markdown-like text, which is not escaped or reformatted.
+- The heading text is formatted as it is today. It is followed by exactly one space and the block. The space replaces all whitespace between the text and the block, including any line break, in every `textWrap` mode. A hard line break there is replaced too, dropping its backslash or trailing spaces. Hashes at the end of the text are not escaped, because the block follows them on the line.
+- Inside the block, each run of whitespace outside quoted values becomes one space. Inside quoted values, each line break, together with the spaces and tabs around it, becomes one space. Everything else is written exactly as in the heading content, which leaves out container prefixes such as `> `: the optional colon, attribute order, duplicates, other whitespace in quoted values, and any Markdown-like text, which is not escaped or reformatted.
 - The block is never broken across lines and never starts a line. The space before it is not a place where a line can break, so where the heading text wraps, the existing wrapping treats the block as part of the text's last word. The final line may exceed `lineWidth`.
 - ATX headings stay on one line, as today. Level 1 and 2 headings become Setext only where the formatter already converts them, and the underline is sized with the existing rule, counting the block as part of its line.
 - Formatting the output again with the same configuration produces the same output.
-
-Python-Markdown only reads a heading's block after a space, so writing `Title{#id}` as `Title {#id}` makes that block take effect there. This is intended.
 
 ## Examples
 
@@ -45,8 +43,6 @@ Python-Markdown only reads a heading's block after a space, so writing `Title{#i
 With `heading.kind: atx`:
 
 ```markdown
-# Title{#id}
-
 # Title {  #id   .note   title="a  {b}"  }
 
 # Title {:  checked  key='x'} ##
@@ -55,7 +51,7 @@ With `heading.kind: atx`:
 
 # Title {t="*a*"}
 
-# A   title\{draft}
+# A   title \{draft}
 
 # A   title {#id} {unfinished
 
@@ -65,14 +61,12 @@ With `heading.kind: atx`:
 
 # `code {#id}`
 
-# [Logo](u){width=10}
+# Title{#id}
 ```
 
 Output:
 
 ```markdown
-# Title {#id}
-
 # Title { #id .note title="a  {b}" }
 
 # Title {: checked key='x'}
@@ -81,7 +75,7 @@ Output:
 
 # Title {t="*a*"}
 
-# A title\{draft}
+# A title \{draft}
 
 # A title {#id} {unfinished
 
@@ -91,21 +85,21 @@ Output:
 
 # `code {#id}`
 
-# [Logo](u){width=10}
+# Title{#id}
 ```
 
-The last six headings have no recognized block: an escaped brace, an unclosed final candidate, no heading text, an empty block, a block inside a code span, and a block touching a link.
+The last six headings have no recognized block: an escaped brace, an unclosed final candidate, no heading text, an empty block, a block inside a code span, and a block touching the text.
 
 ### Setext wrapping
 
 With `heading.kind: setext`, `textWrap: always` and `lineWidth: 10`:
 
 ```markdown
-# Alpha beta gamma{#id}
+# Alpha beta gamma {#id}
 
-# Alpha beta{#id}
+# Alpha beta {#id}
 
-### Alpha beta gamma{#id}
+### Alpha beta gamma {#id}
 ```
 
 Output:
