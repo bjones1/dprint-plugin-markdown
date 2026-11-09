@@ -1,0 +1,22 @@
+~~ heading.kind: setext, textWrap: always, lineWidth: 10 ~~
+!! should keep the block with the last word when the text wraps !!
+# Alpha beta gamma {#id}
+
+[expect]
+Alpha beta
+gamma {#id}
+===========
+
+!! should move the last word to the next line with the block !!
+# Alpha beta {#id}
+
+[expect]
+Alpha
+beta {#id}
+==========
+
+!! should keep level 3 headings atx on one line !!
+### Alpha beta gamma {#id}
+
+[expect]
+### Alpha beta gamma {#id}

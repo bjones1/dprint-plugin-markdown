@@ -1,0 +1,28 @@
+~~ heading.kind: setext, textWrap: maintain ~~
+!! should size the underline by display width, counting the block !!
+猫   {#id   .c}
+---
+
+[expect]
+猫 {#id .c}
+-----------
+
+!! should not recognize a block on a line of its own !!
+Title
+{#id}
+---
+
+[expect]
+Title
+{#id}
+-----
+
+!! should not recognize a block that continues on another line !!
+Alpha {#id
+.c}
+===
+
+[expect]
+Alpha {#id
+.c}
+==========

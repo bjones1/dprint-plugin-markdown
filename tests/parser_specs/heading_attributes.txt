@@ -1,0 +1,139 @@
+[[test]] atx heading ending with an attribute block
+# Title *a* {#id .c}
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 20],
+  "text": "# Title *a* {#id .c}",
+  "children": [
+    {
+      "kind": "Heading",
+      "span": [0, 20],
+      "text": "# Title *a* {#id .c}",
+      "level": 1,
+      "headingStyle": "Atx",
+      "attributes": "{#id .c}",
+      "children": [
+        {
+          "kind": "Text",
+          "span": [2, 7],
+          "text": "Title"
+        },
+        {
+          "kind": "TextDecoration",
+          "span": [8, 11],
+          "text": "*a*",
+          "decoration": "Emphasis",
+          "children": [
+            {
+              "kind": "Text",
+              "span": [9, 10],
+              "text": "a"
+            }
+          ]
+        },
+        {
+          "kind": "Text",
+          "span": [12, 20],
+          "text": "{#id .c}"
+        }
+      ]
+    }
+  ]
+}
+[[test]] setext heading ending with an attribute block
+Alpha
+beta {: key="a  {b}"}
+===
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 31],
+  "text": "Alpha\nbeta {: key=\"a  {b}\"}\n===",
+  "children": [
+    {
+      "kind": "Heading",
+      "span": [0, 31],
+      "text": "Alpha\nbeta {: key=\"a  {b}\"}\n===",
+      "level": 1,
+      "headingStyle": "Setext",
+      "attributes": "{: key=\"a  {b}\"}",
+      "children": [
+        {
+          "kind": "Text",
+          "span": [0, 5],
+          "text": "Alpha"
+        },
+        {
+          "kind": "SoftBreak",
+          "span": [5, 6],
+          "text": "\n"
+        },
+        {
+          "kind": "Text",
+          "span": [6, 27],
+          "text": "beta {: key=\"a  {b}\"}"
+        }
+      ]
+    }
+  ]
+}
+[[test]] block whose brace is within a code span
+# Title `{#id` }
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 16],
+  "text": "# Title `{#id` }",
+  "children": [
+    {
+      "kind": "Heading",
+      "span": [0, 16],
+      "text": "# Title `{#id` }",
+      "level": 1,
+      "headingStyle": "Atx",
+      "children": [
+        {
+          "kind": "Text",
+          "span": [2, 7],
+          "text": "Title"
+        },
+        {
+          "kind": "Code",
+          "span": [8, 14],
+          "text": "`{#id`",
+          "content": "{#id"
+        },
+        {
+          "kind": "Text",
+          "span": [15, 16],
+          "text": "}"
+        }
+      ]
+    }
+  ]
+}
+[[test]] block touching the text
+# Title{#id}
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 12],
+  "text": "# Title{#id}",
+  "children": [
+    {
+      "kind": "Heading",
+      "span": [0, 12],
+      "text": "# Title{#id}",
+      "level": 1,
+      "headingStyle": "Atx",
+      "children": [
+        {
+          "kind": "Text",
+          "span": [2, 12],
+          "text": "Title{#id}"
+        }
+      ]
+    }
+  ]
+}

@@ -10,6 +10,7 @@ use dprint_core::formatting::bumpalo::collections::Vec as BumpVec;
 use dprint_core::formatting::bumpalo::Bump;
 
 use super::ast::*;
+use super::heading_attributes;
 use super::inline::parse_inlines;
 use super::inline::InlineContext;
 use super::inline::InlineText;
@@ -120,16 +121,41 @@ impl<'a, 'c> BlockParser<'a, 'c> {
       content
     };
 
+    let content = [content];
+    let children = self.parse_inlines(&content);
     nodes.push(
       Heading {
         span: Span::new(line.start, lines[index].trim_end().end()),
         level,
         style: HeadingStyle::Atx,
-        children: self.parse_inlines(&[content]),
+        children,
+        attributes: self.heading_attributes(&content, children),
       }
       .into(),
     );
     index + 1
+  }
+
+  /// The attribute block the heading with the given content ends with, if it
+  /// ends with one, along with its text read without it.
+  fn heading_attributes(&self, content: &[ContentLine<'a>], children: &'a [Node<'a>]) -> Option<HeadingAttributes<'a>> {
+    let (last, before) = content.split_last()?;
+    let last = last.trim_end();
+    let start = heading_attributes::attribute_block_start(last.text, last.start, children)?;
+
+    // the text is read again without the block, which only differs from how
+    // it was read with it where the block took part in something the text
+    // started -- and then the block's `{` wouldn't have been plain text
+    let mut text_line = last;
+    text_line.text = last.text[..start].trim_end_matches(' ');
+    let mut text_lines = BumpVec::from_iter_in(before.iter().copied(), self.context.bump);
+    text_lines.push(text_line);
+
+    Some(HeadingAttributes {
+      span: Span::new(last.start + start, last.end()),
+      text: &last.text[start..],
+      children: self.parse_inlines(&text_lines),
+    })
   }
 
   fn parse_fenced_code(&self, lines: &[ContentLine<'a>], index: usize, nodes: &mut BumpVec<'a, Node<'a>>) -> usize {
@@ -516,12 +542,14 @@ impl<'a, 'c> BlockParser<'a, 'c> {
       if line.indent_columns() < CODE_INDENT && !line.is_lazy {
         if let Some(level) = setext_heading_level(rest) {
           let content = &lines[content_start..end];
+          let children = self.parse_inlines(content);
           nodes.push(
             Heading {
               span: Span::new(content[0].rest_start(), line.trim_end().end()),
               level,
               style: HeadingStyle::Setext,
-              children: self.parse_inlines(content),
+              children,
+              attributes: self.heading_attributes(content, children),
             }
             .into(),
           );

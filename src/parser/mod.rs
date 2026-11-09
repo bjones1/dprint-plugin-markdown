@@ -9,6 +9,7 @@
 
 mod ast;
 mod block;
+mod heading_attributes;
 mod inline;
 mod links;
 mod source;
@@ -32,6 +33,8 @@ pub use block::is_whole_html_block;
 pub use block::line_start_escape;
 pub use block::starts_block_at_block_start;
 pub use block::starts_block_in_paragraph;
+pub use heading_attributes::read_block as read_attribute_block;
+pub use heading_attributes::BlockPiece as AttributeBlockPiece;
 pub use inline::is_markdown_punctuation;
 pub use source::SPACES;
 pub use source::WHITESPACE;
