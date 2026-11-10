@@ -583,6 +583,12 @@ impl<'a> Context<'a> {
     result
   }
 
+  /// Whether the text being written has a line that runs on past its end, as
+  /// a heading's text does when an attribute block follows it.
+  pub fn is_within_line_text(&self) -> bool {
+    self.line_text_end.is_some()
+  }
+
   /// The text from `start` through to the end of the block being written,
   /// which is how far a line of it can run on.
   pub fn text_from(&self, start: usize, fallback_end: usize) -> &str {
