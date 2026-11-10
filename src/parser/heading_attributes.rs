@@ -265,6 +265,8 @@ mod test {
     attributes_of("Alpha\nbeta {.c}\n===", "{.c}", "Alpha\nbeta");
     attributes_of("> Alpha\n> beta {.c}\n> ---", "{.c}", "Alpha\n> beta");
     attributes_of("# Title   {a=\" {b   c=\"d}\"}", "{b   c=\"d}\"}", "Title   {a=\"");
+    // only spaces and tabs are whitespace, so a no-break space is text
+    attributes_of("# \u{A0} {#id}", "{#id}", "\u{A0}");
   }
 
   #[test]
@@ -283,6 +285,9 @@ mod test {
       "# Title \\{#id}",
       "Title\n{#id}\n===",
       "Title {#id\n.c}\n===",
+      "# Title\u{A0}{#id}",
+      "# Title \u{A0}{#id}",
+      "# Title\u{3000}{#id}",
     ] {
       assert_eq!(heading_attributes(markdown), None, "{markdown:?}");
     }

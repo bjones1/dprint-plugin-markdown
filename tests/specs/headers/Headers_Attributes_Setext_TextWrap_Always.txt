@@ -20,3 +20,50 @@ beta {#id}
 
 [expect]
 ### Alpha beta gamma {#id}
+
+!! should not leave words that start a block alone on the first line !!
+# *** a {#id}
+
+# --- a {#id}
+
+# _ _ _ a {#id}
+
+[expect]
+*** a {#id}
+===========
+
+--- a {#id}
+===========
+
+_ _ _ a {#id}
+=============
+
+!! should not wrap text that starts with a tag that would start an html block alone !!
+# <img src="logo.png" alt="Logo"> Brand {#brand}
+
+[expect]
+<img src="logo.png" alt="Logo"> Brand {#brand}
+==============================================
+
+!! should wrap text that starts with a tag that can't be left alone !!
+# <b>Bold</b> word and more {#id}
+
+[expect]
+<b>Bold</b>
+word and
+more {#id}
+===========
+
+!! should not start a line with a list marker that the block would make a list item !!
+# Alpha beta - {#id}
+
+# Alpha beta 1. {#id}
+
+[expect]
+Alpha
+beta - {#id}
+============
+
+Alpha
+beta 1. {#id}
+=============

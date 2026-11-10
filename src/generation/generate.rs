@@ -777,9 +777,9 @@ fn gen_heading_content<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> 
   let Some(attributes) = &heading.attributes else {
     return gen_nodes(heading.children, context);
   };
-  if context.delimiter_runs().is_some() {
-    return gen_text_and_attribute_block(heading, attributes, context);
-  }
+  // a heading is only ever written among blocks, which have no delimiter runs
+  // of their own for the heading's to be gathered within
+  debug_assert!(context.delimiter_runs().is_none());
 
   let runs = delimiter_runs(heading.children, context);
   let needs_checking = decorations_need_checking(heading.children, &runs, context);
@@ -817,7 +817,35 @@ fn gen_text_and_attribute_block<'a>(
   attributes: &HeadingAttributes<'a>,
   context: &mut Context<'a>,
 ) -> PrintItems<'a> {
-  let mut items = gen_nodes(attributes.children, context);
+  // the block makes the line it ends longer, so the text is wrapped the way a
+  // paragraph's is: its first line can't be left holding only words that would
+  // start a block of their own (ex. `***`), and its last words are looked at
+  // together with the block that follows them on their line (ex. `- {#id}`)
+  let mut line_starts = LineStarts::default();
+  if let Some(first) = attributes.children.first() {
+    line_starts.push(first.span().start);
+  }
+  let escapes = ParagraphEscapes {
+    block_starts: Vec::new(),
+    line_starts,
+    end: attributes.span.end,
+  };
+  // a tag that the text starts with, followed by a space the line could be
+  // broken at, would start an html block if it were left on a line of its own,
+  // and nothing keeps the words after it from being wrapped away from it, so
+  // such a heading's text isn't wrapped at all
+  let starts_with_html_block = matches!(
+    attributes.children.first(),
+    Some(Node::Html(html)) if crate::parser::starts_block_at_block_start(html.text)
+      && context.file_text[html.span.end..].starts_with([' ', '\t'])
+  );
+  let mut items = context.with_paragraph_escapes(escapes, |context| {
+    if starts_with_html_block {
+      context.with_no_text_wrap(|context| gen_nodes(attributes.children, context))
+    } else {
+      gen_nodes(attributes.children, context)
+    }
+  });
   // a plain space rather than a signal, so the printer can't break the line
   // there and moves the end of the text to the next line along with the block
   items.push_space();

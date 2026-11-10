@@ -36,3 +36,13 @@ __ \
 __ \
 'x___   {#id   .c}
 ==================
+
+!! should recognize a block on a lazy continuation line of a block quote !!
+> Alpha
+beta   {#id}
+> ---
+
+[expect]
+> Alpha
+> beta {#id}
+> ----------

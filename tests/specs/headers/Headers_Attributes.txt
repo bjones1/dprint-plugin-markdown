@@ -175,3 +175,23 @@ Title  ##   {#id}
 
 [expect]
 # Title {a=" {b c="d}"}
+
+!! should keep the spaces within a link, math and strikethrough in the block !!
+# Title {x=[a  b](u)   .c}
+
+# Title {x=$a  b$   .c}
+
+# Title {x=~~a  b~~   .c}
+
+[expect]
+# Title {x=[a  b](u) .c}
+
+# Title {x=$a  b$ .c}
+
+# Title {x=~~a  b~~ .c}
+
+!! should not recognize a block whose brace is within math !!
+# a   $b   {x=$}
+
+[expect]
+# a $b   {x=$}
