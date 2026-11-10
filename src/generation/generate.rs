@@ -3593,10 +3593,12 @@ fn starts_block_at_line_start(node: &Node, context: &Context) -> bool {
   let span = node.span();
   let following_text = context.text_from(span.start, span.end);
   node.starts_block_at_line_start(following_text, text_can_be_wrapped_away(context))
-    // in a heading's text, the attribute block after the last words can't be
-    // wrapped away from them, so a footnote reference with a colon after it
-    // there is followed on its line by more than the colon, and would read
-    // as the start of a definition
+    // a footnote reference with a colon after it reads as the start of a
+    // definition at the start of a line. In a heading's text with an attribute
+    // block after it, such a reference is kept off one wherever it is: the
+    // block can't be wrapped away from the last words, so even the colon that
+    // ends the text is followed by more on its line. Paragraphs, and headings
+    // without a block, are left wrapping as they did
     || matches!(node, Node::FootnoteReference(_))
       && context.is_within_line_text()
       && crate::parser::starts_block_in_paragraph(following_text)

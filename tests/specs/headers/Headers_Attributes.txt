@@ -209,3 +209,13 @@ beta {#id}
 
 [expect]
 # Title {#a .b #a k=v .b}
+
+!! should not recognize a block whose brace is within inline html or strikethrough !!
+# a <b c=" {x   y=">"}
+
+# a ~~b {x="1  2" y=~~}
+
+[expect]
+# a <b c=" {x   y=">"}
+
+# a ~~b {x="1 2" y=~~}
