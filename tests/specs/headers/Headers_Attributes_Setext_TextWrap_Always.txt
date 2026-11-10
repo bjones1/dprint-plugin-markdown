@@ -1,0 +1,90 @@
+~~ heading.kind: setext, textWrap: always, lineWidth: 10 ~~
+!! should keep the block with the last word when the text wraps !!
+# Alpha beta gamma {#id}
+
+[expect]
+Alpha beta
+gamma {#id}
+===========
+
+!! should move the last word to the next line with the block !!
+# Alpha beta {#id}
+
+[expect]
+Alpha
+beta {#id}
+==========
+
+!! should keep level 3 headings atx on one line !!
+### Alpha beta gamma {#id}
+
+[expect]
+### Alpha beta gamma {#id}
+
+!! should not leave words that start a block alone on the first line !!
+# *** a {#id}
+
+# --- a {#id}
+
+# _ _ _ a {#id}
+
+[expect]
+*** a {#id}
+===========
+
+--- a {#id}
+===========
+
+_ _ _ a {#id}
+=============
+
+!! should not wrap text that starts with a tag that would start an html block alone !!
+# <img src="logo.png" alt="Logo"> Brand {#brand}
+
+[expect]
+<img src="logo.png" alt="Logo"> Brand {#brand}
+==============================================
+
+!! should wrap text that starts with a tag that can't be left alone !!
+# <b>Bold</b> word and more {#id}
+
+[expect]
+<b>Bold</b>
+word and
+more {#id}
+===========
+
+!! should not start a line with a list marker that the block would make a list item !!
+# Alpha beta - {#id}
+
+# Alpha beta 1. {#id}
+
+[expect]
+Alpha
+beta - {#id}
+============
+
+Alpha
+beta 1. {#id}
+=============
+
+!! should not leave words that start a block alone on a line a hard break starts !!
+Alpha\
+*** a {#id}
+===
+
+[expect]
+Alpha\
+*** a {#id}
+===========
+
+!! should only keep a leading tag together with the word after it !!
+# <img src=x> alpha beta gamma delta epsilon zeta {#id}
+
+[expect]
+<img src=x> alpha
+beta gamma
+delta
+epsilon
+zeta {#id}
+=================

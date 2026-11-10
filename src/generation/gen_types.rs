@@ -222,6 +222,10 @@ pub struct Context<'a> {
   /// Where the block being written ends, which bounds how far the text of one
   /// of its lines can run.
   block_end: Option<usize>,
+  /// Where the line the text being written ends on runs to, where that's past
+  /// the end of the text without the text being within a paragraph (ex. the
+  /// attribute block after a heading's text).
+  line_text_end: Option<usize>,
   /// The line breaks between the nodes being written that aren't written out.
   dropped_breaks: DroppedBreaks,
   /// The delimiter runs of the block being written, once its content is being
@@ -291,6 +295,7 @@ impl<'a> Context<'a> {
       escaped_block_starts: Vec::new(),
       line_start_texts: LineStarts::default(),
       block_end: None,
+      line_text_end: None,
       dropped_breaks: Default::default(),
       delimiter_runs: None,
       decoration_delimiters: std::cell::RefCell::new(HashMap::new()),
@@ -560,10 +565,38 @@ impl<'a> Context<'a> {
     result
   }
 
+  /// Generates text whose lines start where `line_starts` says and whose last
+  /// line runs on to `line_end`, so that the words a line starts with can't be
+  /// wrapped onto a line of their own, but without the escapes a paragraph's
+  /// text is written with.
+  pub fn with_line_starts<T>(
+    &mut self,
+    line_starts: LineStarts,
+    line_end: usize,
+    func: impl FnOnce(&mut Context<'a>) -> T,
+  ) -> T {
+    let previous_starts = std::mem::replace(&mut self.line_start_texts, line_starts);
+    let previous_end = self.line_text_end.replace(line_end);
+    let result = func(self);
+    self.line_start_texts = previous_starts;
+    self.line_text_end = previous_end;
+    result
+  }
+
+  /// Whether the text being written has a line that runs on past its end, as
+  /// a heading's text does when an attribute block follows it.
+  pub fn is_within_line_text(&self) -> bool {
+    self.line_text_end.is_some()
+  }
+
   /// The text from `start` through to the end of the block being written,
   /// which is how far a line of it can run on.
   pub fn text_from(&self, start: usize, fallback_end: usize) -> &str {
-    let end = self.block_end.filter(|end| *end >= start).unwrap_or(fallback_end);
+    let end = self
+      .line_text_end
+      .or(self.block_end)
+      .filter(|end| *end >= start)
+      .unwrap_or(fallback_end);
     &self.file_text[start..end]
   }
 

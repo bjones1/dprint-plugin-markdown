@@ -1,0 +1,10 @@
+~~ heading.kind: setext, textWrap: sentence ~~
+!! should keep the sentence break of a heading that starts with a tag !!
+<img src=x> Done.
+Next step {#id}
+===
+
+[expect]
+<img src=x> Done.
+Next step {#id}
+=================

@@ -1,0 +1,48 @@
+~~ heading.kind: setext, textWrap: maintain ~~
+!! should size the underline by display width, counting the block !!
+猫   {#id   .c}
+---
+
+[expect]
+猫 {#id .c}
+-----------
+
+!! should not recognize a block on a line of its own !!
+Title
+{#id}
+---
+
+[expect]
+Title
+{#id}
+-----
+
+!! should not recognize a block that continues on another line !!
+Alpha {#id
+.c}
+===
+
+[expect]
+Alpha {#id
+.c}
+==========
+
+!! should write the spaces before the block and the block as in the file where the heading's text is !!
+__ \
+'x___   {#id   .c}
+===
+
+[expect]
+__ \
+'x___   {#id   .c}
+==================
+
+!! should recognize a block on a lazy continuation line of a block quote !!
+> Alpha
+beta   {#id}
+> ---
+
+[expect]
+> Alpha
+> beta {#id}
+> ----------

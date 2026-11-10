@@ -1,0 +1,221 @@
+~~ heading.kind: atx ~~
+!! should write one space before the block and collapse the spaces between its attributes !!
+# Title {  #id   .note   title="a  {b}"  }
+
+[expect]
+# Title { #id .note title="a  {b}" }
+
+!! should keep the optional colon and remove a closing sequence after the block !!
+# Title {:  checked  key='x'} ##
+
+[expect]
+# Title {: checked key='x'}
+
+!! should keep hashes before the block as heading text without escaping them !!
+# Title ## {#id}
+
+[expect]
+# Title ## {#id}
+
+!! should not reformat markdown within a quoted value !!
+# Title {t="*a*"}
+
+[expect]
+# Title {t="*a*"}
+
+!! should leave a brace escaped by a backslash alone !!
+# A   title \{draft}
+
+[expect]
+# A title \{draft}
+
+!! should not use an earlier block when the content doesn't end with one !!
+# A   title {#id} {unfinished
+
+[expect]
+# A title {#id} {unfinished
+
+!! should not recognize a block without heading text !!
+#    {#id}
+
+[expect]
+# {#id}
+
+!! should not recognize an empty block !!
+# Title {}
+
+[expect]
+# Title {}
+
+!! should not recognize a block whose brace is within a code span !!
+# Title `{#id` }
+
+[expect]
+# Title `{#id` }
+
+!! should not recognize a block touching the text !!
+# Title{#id}
+
+[expect]
+# Title{#id}
+
+!! should keep a tab between the text and the block, which isn't recognized !!
+# Title	{#id}
+
+[expect]
+# Title	{#id}
+
+!! should keep a tab between attributes, which isn't recognized !!
+# Title {#id	.c}
+
+[expect]
+# Title {#id	.c}
+
+!! should keep tabs and spaces within a quoted value !!
+# Title {t="a	 b"}
+
+[expect]
+# Title {t="a	 b"}
+
+!! should keep the spaces within a code span in the block !!
+# Title {t=`a  b`   .c}
+
+[expect]
+# Title {t=`a  b` .c}
+
+!! should leave a block on the line after the heading as a paragraph !!
+### My Heading
+{#my-ID}
+
+[expect]
+### My Heading
+
+{#my-ID}
+
+!! should leave a paragraph that only looks like a heading alone !!
+###My Heading{#my-ID}
+
+[expect]
+###My Heading{#my-ID}
+
+!! should convert a setext heading with a block to atx !!
+Title   {#id}
+=====
+
+[expect]
+# Title {#id}
+
+!! should format a block within a block quote and a list !!
+> # Quoted   {  #q  }
+
+- Item
+
+  ## Nested   {.x}
+
+[expect]
+> # Quoted { #q }
+
+- Item
+
+  ## Nested {.x}
+
+!! should keep emphasis that the block's delimiters would otherwise pair with !!
+# Upgrade to *Pro**. {title="Pro*"}
+
+[expect]
+# Upgrade to *Pro**. {title="Pro*"}
+
+!! should still write the text's decorations with the configured character !!
+# *a* {#id}
+
+[expect]
+# _a_ {#id}
+
+!! should keep the spaces within emphasis and inline html in the block !!
+# Title {x=*a  b*   .c}
+
+# Title {x=<b  c>   .c}
+
+[expect]
+# Title {x=*a  b* .c}
+
+# Title {x=<b  c> .c}
+
+!! should not recognize a block whose brace is within a link or emphasis !!
+# Title [a {b](u) c}
+
+# *a {*}
+
+[expect]
+# Title [a {b](u) c}
+
+# _a {_}
+
+!! should not escape hashes before the block of a setext heading written as atx !!
+Title  ##   {#id}
+===
+
+[expect]
+# Title ## {#id}
+
+!! should not recognize a block that hashes touch !!
+# Title   {#id}##
+
+[expect]
+# Title {#id}##
+
+!! should remove a closing sequence written after a tab !!
+## Title   {#id}	##
+
+[expect]
+## Title {#id}
+
+!! should find the block that starts within a quoted value of what looks like an earlier one !!
+# Title   {a=" {b   c="d}"}
+
+[expect]
+# Title {a=" {b c="d}"}
+
+!! should keep the spaces within a link, math and strikethrough in the block !!
+# Title {x=[a  b](u)   .c}
+
+# Title {x=$a  b$   .c}
+
+# Title {x=~~a  b~~   .c}
+
+[expect]
+# Title {x=[a  b](u) .c}
+
+# Title {x=$a  b$ .c}
+
+# Title {x=~~a  b~~ .c}
+
+!! should not recognize a block whose brace is within math !!
+# a   $b   {x=$}
+
+[expect]
+# a $b   {x=$}
+
+!! should not escape a literal backslash the text has before a line break !!
+Alpha\ 
+beta {#id}
+===
+
+[expect]
+# Alpha\ beta {#id}
+
+!! should keep duplicate attributes, their order and unquoted values !!
+# Title {#a .b #a  k=v   .b}
+
+[expect]
+# Title {#a .b #a k=v .b}
+
+!! should not recognize a block whose brace is within inline html or strikethrough !!
+# a <b c=" {x   y=">"}
+
+# a ~~b {x="1  2" y=~~}
+
+[expect]
+# a <b c=" {x   y=">"}
+
+# a ~~b {x="1 2" y=~~}

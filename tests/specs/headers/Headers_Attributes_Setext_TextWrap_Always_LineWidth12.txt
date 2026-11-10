@@ -1,0 +1,14 @@
+~~ heading.kind: setext, textWrap: always, lineWidth: 12 ~~
+!! should keep a footnote reference with a colon after it off a line start anywhere in the text !!
+# Alpha beta [^1]: gamma delta epsilon {#id}
+
+[^1]: Note.
+
+[expect]
+Alpha
+beta [^1]:
+gamma delta
+epsilon {#id}
+=============
+
+[^1]: Note.
