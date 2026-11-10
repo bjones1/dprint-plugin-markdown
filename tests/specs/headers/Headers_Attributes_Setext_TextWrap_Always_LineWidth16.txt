@@ -1,0 +1,28 @@
+~~ heading.kind: setext, textWrap: always, lineWidth: 16 ~~
+!! should keep a leading tag together with whatever element follows it !!
+# <span> *alpha* {#id}
+
+# <img src=x> `code` {#id}
+
+# <span> [link](u) {#id}
+
+[expect]
+<span> _alpha_ {#id}
+====================
+
+<img src=x> `code` {#id}
+========================
+
+<span> [link](u) {#id}
+======================
+
+!! should not start a line with a footnote reference that the colon after it would make a definition !!
+# Alpha [^1]: {#id}
+
+[^1]: Note.
+
+[expect]
+Alpha [^1]: {#id}
+=================
+
+[^1]: Note.

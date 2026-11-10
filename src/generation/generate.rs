@@ -835,8 +835,9 @@ fn gen_text_and_attribute_block<'a>(
   // away from it, so the space after it is written as one the line can't be
   // broken at
   let leading_tag_len = match attributes.children {
-    [Node::Html(html), Node::Text(_), ..]
-      if crate::parser::starts_block_at_block_start(html.text)
+    [Node::Html(html), next, ..]
+      if !matches!(next, Node::SoftBreak(_) | Node::HardBreak(_))
+        && crate::parser::starts_block_at_block_start(html.text)
         && context.file_text[html.span.end..].starts_with([' ', '\t']) =>
     {
       1
@@ -844,7 +845,10 @@ fn gen_text_and_attribute_block<'a>(
     _ => 0,
   };
 
-  let mut items = context.with_line_starts(line_starts, |context| {
+  // the text's last words are read together with the block after them, which
+  // is on their line (ex. a footnote reference and colon before it would start
+  // a definition at the start of a line)
+  let mut items = context.with_line_starts(line_starts, attributes.span.end, |context| {
     let (tag, rest) = attributes.children.split_at(leading_tag_len);
     let mut items = gen_nodes(tag, context);
     if !tag.is_empty() {

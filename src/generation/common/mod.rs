@@ -153,6 +153,8 @@ impl<'a> Node<'a> {
         !html.is_block
           && crate::generation::utils::starts_block_at_line_start(html.text, following_text, word_can_be_left_alone)
       }
+      // a reference with a colon after it reads as the start of a definition
+      Node::FootnoteReference(_) => crate::parser::starts_block_in_paragraph(following_text),
       _ => false,
     }
   }

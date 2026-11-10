@@ -203,3 +203,9 @@ beta {#id}
 
 [expect]
 # Alpha\ beta {#id}
+
+!! should keep duplicate attributes, their order and unquoted values !!
+# Title {#a .b #a  k=v   .b}
+
+[expect]
+# Title {#a .b #a k=v .b}
