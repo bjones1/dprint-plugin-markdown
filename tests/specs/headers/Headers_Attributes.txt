@@ -124,3 +124,54 @@ Title   {#id}
 
 [expect]
 # Upgrade to *Pro**. {title="Pro*"}
+
+!! should still write the text's decorations with the configured character !!
+# *a* {#id}
+
+[expect]
+# _a_ {#id}
+
+!! should keep the spaces within emphasis and inline html in the block !!
+# Title {x=*a  b*   .c}
+
+# Title {x=<b  c>   .c}
+
+[expect]
+# Title {x=*a  b* .c}
+
+# Title {x=<b  c> .c}
+
+!! should not recognize a block whose brace is within a link or emphasis !!
+# Title [a {b](u) c}
+
+# *a {*}
+
+[expect]
+# Title [a {b](u) c}
+
+# _a {_}
+
+!! should not escape hashes before the block of a setext heading written as atx !!
+Title  ##   {#id}
+===
+
+[expect]
+# Title ## {#id}
+
+!! should not recognize a block that hashes touch !!
+# Title   {#id}##
+
+[expect]
+# Title {#id}##
+
+!! should remove a closing sequence written after a tab !!
+## Title   {#id}	##
+
+[expect]
+## Title {#id}
+
+!! should find the block that starts within a quoted value of what looks like an earlier one !!
+# Title   {a=" {b   c="d}"}
+
+[expect]
+# Title {a=" {b c="d}"}

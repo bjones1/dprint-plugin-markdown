@@ -26,3 +26,13 @@ Alpha {#id
 Alpha {#id
 .c}
 ==========
+
+!! should write the spaces before the block and the block as in the file where the heading's text is !!
+__ \
+'x___   {#id   .c}
+===
+
+[expect]
+__ \
+'x___   {#id   .c}
+==================

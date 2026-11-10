@@ -194,6 +194,7 @@ mod test {
       "{t=\"a\tb\"}",
       "{data-x=1 #a}",
       "{#a#b}",
+      "{:#id}",
     ] {
       assert!(is_block(text), "{text}");
     }
@@ -222,8 +223,68 @@ mod test {
       "{a=\"b\"c}",
       "{=a}",
       "{a=b }c",
+      "{: }",
+      "{ :#id}",
     ] {
       assert!(!is_block(text), "{text}");
+    }
+  }
+
+  /// The block the first heading of the markdown ends with, as its text, and
+  /// the text of the heading read without it.
+  fn heading_attributes(markdown: &str) -> Option<(String, String)> {
+    let bump = dprint_core::formatting::bumpalo::Bump::new();
+    let file = crate::parser::parse(markdown, &bump).unwrap();
+    fn first_heading<'n, 'a>(nodes: &'n [Node<'a>]) -> Option<&'n Heading<'a>> {
+      nodes.iter().find_map(|node| match node {
+        Node::Heading(heading) => Some(heading),
+        node => first_heading(node.children()),
+      })
+    }
+    let heading = first_heading(file.children).unwrap_or_else(|| panic!("no heading in {markdown:?}"));
+    let attributes = heading.attributes.as_ref()?;
+    assert_eq!(attributes.span.text(markdown), attributes.text);
+    let start = attributes.children.first().unwrap().span().start;
+    let end = attributes.children.last().unwrap().span().end;
+    Some((attributes.text.to_string(), markdown[start..end].to_string()))
+  }
+
+  fn attributes_of(markdown: &str, block: &str, text: &str) {
+    assert_eq!(
+      heading_attributes(markdown),
+      Some((block.to_string(), text.to_string())),
+      "{markdown:?}"
+    );
+  }
+
+  #[test]
+  fn finds_the_block_a_heading_ends_with() {
+    attributes_of("# Title {#id}", "{#id}", "Title");
+    attributes_of("# *a*   {#id .c} ##", "{#id .c}", "*a*");
+    attributes_of("# Title ## {#id}", "{#id}", "Title ##");
+    attributes_of("Alpha\nbeta {.c}\n===", "{.c}", "Alpha\nbeta");
+    attributes_of("> Alpha\n> beta {.c}\n> ---", "{.c}", "Alpha\n> beta");
+    attributes_of("# Title   {a=\" {b   c=\"d}\"}", "{b   c=\"d}\"}", "Title   {a=\"");
+  }
+
+  #[test]
+  fn leaves_headings_without_a_block() {
+    for markdown in [
+      "# Title{#id}",
+      "# Title\t{#id}",
+      "# Title \t {#id}",
+      "#    {#id}",
+      "# Title {}",
+      "# Title {#id} text",
+      "# Title {#id} {bad",
+      "# Title `{#id` }",
+      "# Title [a {b](u) c}",
+      "# *a {*}",
+      "# Title \\{#id}",
+      "Title\n{#id}\n===",
+      "Title {#id\n.c}\n===",
+    ] {
+      assert_eq!(heading_attributes(markdown), None, "{markdown:?}");
     }
   }
 
