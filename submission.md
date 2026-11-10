@@ -38,11 +38,12 @@ Claude Opus 5.5 (Claude Code) produced the following output.
 The LLM produced the following output.
 
 ```text
-Verified successfully using the installed Rust 1.98.0 toolchain.
-cargo test: passed, 184 tests total; 0 failed.
-CI release WebAssembly build: passed; produced target/wasm32-unknown-unknown/release/dprint_plugin_markdown.wasm.
-This project is a plugin/library, not a standalone executable; the tests ran the project’s code. The worktree remains unchanged.
-Cargo wasn’t on PATH, so I invoked it by its installed path.
+Verified: the repository compiles and its test suite runs successfully on your PC.
+Installed the repository’s pinned Rust 1.98.0 toolchain.
+cargo build --locked — passed.
+cargo test --locked — passed, including formatter, parser, CommonMark, and documentation tests.
+Git working tree remains clean.
+This project is a library plugin, so execution was verified through its tests rather than a standalone application.
 ```
 
 ### Assem
@@ -62,12 +63,7 @@ Cargo wasn’t on PATH, so I invoked it by its installed path.
 The LLM produced the following output.
 
 ```text
-Yes-Rust is installed, and I successfully compiled and ran a Rust program on your PC.
-Rust: 1.99.1
-Cargo: 1.99.1
-Toolchain: stable-x86_64-pc-windows-msvc
-Verification: Compilation, linking, execution, and an assertion all passed.
-Rust is available at C: \Users \ethan\. cargo\bin
+Verification complete: the repository builds clean and all tests run successfully on the pinned Rust 1.98.0 toolchain using cargo build --locked and cargo test --locked (covering formatting, parsing, CommonMark, and documentation). The Git working tree is clean. Since this is a library plugin, functionality was verified directly through the test suite.
 ```
 
 ## Specification review
