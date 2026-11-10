@@ -67,3 +67,24 @@ beta - {#id}
 Alpha
 beta 1. {#id}
 =============
+
+!! should not leave words that start a block alone on a line a hard break starts !!
+Alpha\
+*** a {#id}
+===
+
+[expect]
+Alpha\
+*** a {#id}
+===========
+
+!! should only keep a leading tag together with the word after it !!
+# <img src=x> alpha beta gamma delta epsilon zeta {#id}
+
+[expect]
+<img src=x> alpha
+beta gamma
+delta
+epsilon
+zeta {#id}
+=================

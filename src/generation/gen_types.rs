@@ -560,6 +560,16 @@ impl<'a> Context<'a> {
     result
   }
 
+  /// Generates text whose lines start where `line_starts` says, so that the
+  /// words a line starts with can't be wrapped onto a line of their own, but
+  /// without the escapes and the bound a paragraph's text is written with.
+  pub fn with_line_starts<T>(&mut self, line_starts: LineStarts, func: impl FnOnce(&mut Context<'a>) -> T) -> T {
+    let previous = std::mem::replace(&mut self.line_start_texts, line_starts);
+    let result = func(self);
+    self.line_start_texts = previous;
+    result
+  }
+
   /// The text from `start` through to the end of the block being written,
   /// which is how far a line of it can run on.
   pub fn text_from(&self, start: usize, fallback_end: usize) -> &str {

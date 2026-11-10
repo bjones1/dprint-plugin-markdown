@@ -195,3 +195,11 @@ Title  ##   {#id}
 
 [expect]
 # a $b   {x=$}
+
+!! should not escape a literal backslash the text has before a line break !!
+Alpha\ 
+beta {#id}
+===
+
+[expect]
+# Alpha\ beta {#id}

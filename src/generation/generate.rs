@@ -817,34 +817,41 @@ fn gen_text_and_attribute_block<'a>(
   attributes: &HeadingAttributes<'a>,
   context: &mut Context<'a>,
 ) -> PrintItems<'a> {
-  // the block makes the line it ends longer, so the text is wrapped the way a
-  // paragraph's is: its first line can't be left holding only words that would
-  // start a block of their own (ex. `***`), and its last words are looked at
-  // together with the block that follows them on their line (ex. `- {#id}`)
+  // the block makes the line it ends longer, so the text wraps where it didn't
+  // before. The lines the text starts, which are its first and any after a
+  // hard break, are marked the way a paragraph's are, so that the words they
+  // start with (ex. `***`) can't be wrapped onto a line of their own
   let mut line_starts = LineStarts::default();
-  if let Some(first) = attributes.children.first() {
-    line_starts.push(first.span().start);
-  }
-  let escapes = ParagraphEscapes {
-    block_starts: Vec::new(),
-    line_starts,
-    end: attributes.span.end,
-  };
-  // a tag that the text starts with, followed by a space the line could be
-  // broken at, would start an html block if it were left on a line of its own,
-  // and nothing keeps the words after it from being wrapped away from it, so
-  // such a heading's text isn't wrapped at all
-  let starts_with_html_block = matches!(
-    attributes.children.first(),
-    Some(Node::Html(html)) if crate::parser::starts_block_at_block_start(html.text)
-      && context.file_text[html.span.end..].starts_with([' ', '\t'])
-  );
-  let mut items = context.with_paragraph_escapes(escapes, |context| {
-    if starts_with_html_block {
-      context.with_no_text_wrap(|context| gen_nodes(attributes.children, context))
-    } else {
-      gen_nodes(attributes.children, context)
+  let mut at_line_start = true;
+  for child in attributes.children {
+    if at_line_start {
+      line_starts.push(child.span().start);
     }
+    at_line_start = matches!(child, Node::HardBreak(_));
+  }
+
+  // a tag the text starts with would start an html block if it were left on a
+  // line of its own, and nothing else keeps what follows it from being wrapped
+  // away from it, so the space after it is written as one the line can't be
+  // broken at
+  let leading_tag_len = match attributes.children {
+    [Node::Html(html), Node::Text(_), ..]
+      if crate::parser::starts_block_at_block_start(html.text)
+        && context.file_text[html.span.end..].starts_with([' ', '\t']) =>
+    {
+      1
+    }
+    _ => 0,
+  };
+
+  let mut items = context.with_line_starts(line_starts, |context| {
+    let (tag, rest) = attributes.children.split_at(leading_tag_len);
+    let mut items = gen_nodes(tag, context);
+    if !tag.is_empty() {
+      items.push_space();
+    }
+    items.extend(gen_nodes(rest, context));
+    items
   });
   // a plain space rather than a signal, so the printer can't break the line
   // there and moves the end of the text to the next line along with the block
