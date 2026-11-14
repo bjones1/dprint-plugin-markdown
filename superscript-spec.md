@@ -10,7 +10,7 @@ plugin's parser reads `^` as plain text, so formatting can change what the
 CodeChat Editor shows. Today, on `main` (`7428123`), with `␣` a space and `⏎`
 a line break (rows 1-3 with any `textWrap`, row 4 with `always` or `never`):
 
-| Input           | Formatted today | What changes when rendered                                                             |
+| Input           | Formatted today | Effect                                                                                 |
 | --------------- | --------------- | -------------------------------------------------------------------------------------- |
 | `^a *b^ c*`     | `^a _b^ c_`     | the text `*` becomes `_` (the parser sees emphasis, but `^…^` pairs first, so there is none) |
 | `x ^␣␣⏎b^`      | `x ^\⏎b^`       | a superscript is created                                                               |

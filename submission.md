@@ -64,25 +64,47 @@ probe that formats input and renders input and output with pulldown-cmark
 
 </details>
 
-Output (summarized). All five findings were reproduced by hand and applied;
-none was wrong, so none is struck.
+Output. All five findings were reproduced by hand and applied. Finding 1 was
+fixed another way: instead of reading `[^label]` as text, a `^` right after
+`[` cannot open. One verified-correct claim turned out wrong and is struck.
 
-1. "A footnote reference `[^1]` is read as it is today" is false: the `^` in
-   `[^1]` became an opener, so `x ^␣␣⏎[^1] b^` still gained a superscript.
-   Fix: a `^` right after `[` cannot open.
-2. The known-difference paragraph misdescribed the parser's openers bottom
-   (it is keyed by character, length mod 3 and can-open) and claimed such
-   input always formats unchanged, which failed with a hard break after it.
-3. The read-back check misses a hard break that moves a superscript without
-   changing its text (`^␣␣␣⏎.^.^ !`). Fix: write a hard break after `^` as it
-   was.
-4. Goal row 4 also happens with `textWrap: never`; rows 1-3 with any
-   `textWrap`.
-5. The test rule must allow whitespace-only differences in rendering.
+<details>
+<summary>Full review</summary>
 
-Verified correct: all Goal and Syntax rows, every named function, the
-prototype diff matching the spec, every test row, the full test suite, and
-about 10,000 fuzzed inputs with no other superscript change.
+##### Problems, most severe first
+
+1. **"A footnote reference `[^1]` is read as it is today" is false, and it leads to rendering changes.** The parser has no footnote-reference node, so the `^` in `[^1]` becomes an opener. The prototype parses `[^1] text^` as `[` followed by Superscript `1] text` (AST dumped with UPDATE=1 in a scratch copy). Because of this, the prototype still gets two of the Goal-table cases wrong, in maintain mode at width 80:
+   - `^^[^1]^␣␣⏎b` → `^^[^1]^\⏎b`: pulldown loses `<sup>`. Same with `^^x [^1]^␣␣⏎b`.
+   - `x ^␣␣⏎[^1] b^` → `x ^\⏎[^1] b^`: pulldown gains `<sup>`.
+   - The prototype also stops rewriting `*`→`_` in `[^1] *a^ b*`. That one is harmless.
+   
+   **Fix:** have the inline parser read `[^label]` as text before emphasis (pulldown does this whenever it is not followed by `(`, so `[^a](u)` is a link). Add these cases to both test files.
+
+2. **The known-difference paragraph has two errors.**
+   - "The formatter writes such input back unchanged" is false when a hard break follows. `^a .^^. b.^␣␣⏎(c^` → `…b.^\⏎(c^` creates `<sup><br/>(c</sup>`, and `.^. .^^.^␣␣⏎.^.` does the same.
+   - "One bottom per character" misdescribes the parser. It keys the bottom by `(byte, len%3, can_open)` (`inline.rs:805`). pulldown keeps one slot for all `^` and `~` runs (`parse.rs:1648-1671`). The `^a .^^. b^` case comes from pulldown not splitting by length or can-open. Sharing the slot with `~` causes a second case: `^a ~~b~ c^` has no superscript in pulldown, but this parser reads one.
+   
+   **Fix:** correct the wording, and either stop claiming the output is unchanged or handle the hard-break case.
+
+3. **"The read-back check catches a rewrite that would create or remove a superscript" overstates it.** The check compares each decoration's kind and text with backslashes and whitespace removed (`generate.rs:165, 198`). A hard-break rewrite can move a superscript and still pass: `^␣␣␣⏎.^.^ !` → `^\⏎.^.^ !` turns `<sup>.</sup>` into `<sup><br/>.</sup>.^`. `_` has the same flaw today. **Fix:** list it as a limitation, or count hard breaks in the comparison.
+
+4. **Goal row 4's config note is incomplete.** The CJK join also happens with `textWrap: never`. Rows 1–3 happen with maintain, always and never alike. In pulldown's HTML, row 4 differs only by `⏎` versus a space. **Fix:** say "always or never", and say rows 1–3 occur under every textWrap.
+
+5. **Minor:** for the test row `a ^b c d e f g h i j^ k`, the input and output HTML differ by space versus `⏎`. "Render the same way" should say "apart from whitespace".
+
+Every case in 1–3 behaves the same on today's formatter, so none of them is a regression. They contradict what the spec claims the change achieves.
+
+##### Verified correct
+- **Goal table:** all four rows on today's formatter (`probe`), including the stated HTML changes.
+- **Syntax table:** all 10 rows match pulldown 0.13.6, and `superscript.txt` has matching ASTs. `[^1]` on its own is Text.
+- **Known difference:** `^a .^^. b^` has no superscript in pulldown and one in the prototype, and that exact input formats unchanged.
+- **Code:** every named function exists. `flanking()` puts `^` in the `_` branch. `wrap_emphasis` uses 2 carets when both runs have at least 2. `written_delimiter` uses the offset rule, and `resolve`, `is_delimiter`, the three run helpers and the `commonmark_spec_check` "sup" arm all match the spec. The prototype diff matches the spec exactly, with nothing missing or extra.
+- **Tests:** every formatter test row gives exactly the stated output with the stated config, and the test files match the tables.
+- **Test suite:** the full `cargo test --offline` in proto passes.
+- ~~**Own fuzzing:** about 10,000 of my own inputs across maintain, always, never, sentence and maintainAndWrap, at widths 3–80. Ignoring `~` and whitespace-only HTML differences, I found no other superscript changes beyond items 1–3.~~ (wrong: a later review found `[^a *b^ c*` and `[^␣\⏎b^`, which change the same way on today's formatter)
+- **Not checked:** the claim about `x^2^` in pulldown master and Pandoc (no network).
+
+</details>
 
 ### Amy Smith
 
