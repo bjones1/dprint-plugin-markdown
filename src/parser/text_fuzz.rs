@@ -172,16 +172,23 @@ fn no_text_is_dropped() {
   let mut failures = Vec::new();
   for case in first..first + count {
     let source = generate(case);
-    // a document the parser won't follow holds no ast to check
-    let bump = Bump::new();
-    let Ok(file) = super::parse(&source, &bump) else {
-      continue;
-    };
-    if let Err(message) = validate_text_coverage(&file, &source) {
-      failures.push(format!("case {}: {:?}\n  {}", case, source, message));
-      if failures.len() >= 10 {
-        break;
+    // subscript changes which tildes are delimiters, so both readings are
+    // checked
+    for subscript in [false, true] {
+      // a document the parser won't follow holds no ast to check
+      let bump = Bump::new();
+      let Ok(file) = super::parse(&source, &bump, subscript) else {
+        continue;
+      };
+      if let Err(message) = validate_text_coverage(&file, &source) {
+        failures.push(format!(
+          "case {} (subscript {}): {:?}\n  {}",
+          case, subscript, source, message
+        ));
       }
+    }
+    if failures.len() >= 10 {
+      break;
     }
   }
 

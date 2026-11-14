@@ -67,7 +67,7 @@ pub(crate) fn format_text_range_with_arena_pool(
   // the blocks are read in an arena of their own, since they're held while
   // the levels are formatted in arenas of theirs
   let bump = Bump::new();
-  let Ok(source_file) = crate::parser::parse(body, &bump) else {
+  let Ok(source_file) = crate::parser::parse(body, &bump, config.subscript) else {
     return format_text_with_arena_pool(file_text, config, arena_pool, format_code_block_text);
   };
   let levels = match find_levels(&source_file, &range) {
@@ -89,7 +89,7 @@ pub(crate) fn format_text_range_with_arena_pool(
       &mut format_code_block_text,
     )?
     .expect("an ignored file should have been handled");
-    match find_replacement(&levels[..=depth], body, &formatted) {
+    match find_replacement(&levels[..=depth], body, &formatted, config.subscript) {
       Some((replaced_depth, replacement)) if replaced_depth == depth => break replacement,
       Some((replaced_depth, _)) => depth = replaced_depth,
       None => return format_text_with_arena_pool(file_text, config, arena_pool, format_code_block_text),
@@ -186,9 +186,14 @@ fn find_levels<'a, 'b>(source_file: &'b SourceFile<'a>, range: &Range<usize>) ->
 /// Finds the text to replace in the original and the formatted text to
 /// replace it with, starting with the innermost level and moving out towards
 /// the file, along with the depth of the level it's made at.
-fn find_replacement(levels: &[Level], text: &str, formatted_text: &str) -> Option<(usize, Replacement)> {
+fn find_replacement(
+  levels: &[Level],
+  text: &str,
+  formatted_text: &str,
+  subscript: bool,
+) -> Option<(usize, Replacement)> {
   let bump = Bump::new();
-  let formatted_file = crate::parser::parse(formatted_text, &bump).ok()?;
+  let formatted_file = crate::parser::parse(formatted_text, &bump, subscript).ok()?;
   let mut formatted_levels = Vec::with_capacity(levels.len());
   let mut formatted_members = formatted_file.children.iter().collect::<Vec<_>>();
   for level in levels {
@@ -231,14 +236,29 @@ fn find_replacement(levels: &[Level], text: &str, formatted_text: &str) -> Optio
         original,
         text: with_file_new_lines(&formatted_text[formatted_range.clone()], text).into_owned(),
       };
-      reads_back(levels, depth, text, &replacement, &formatted_text[formatted_range]).then_some((depth, replacement))
+      reads_back(
+        levels,
+        depth,
+        text,
+        &replacement,
+        &formatted_text[formatted_range],
+        subscript,
+      )
+      .then_some((depth, replacement))
     })
 }
 
 /// Whether the text with the replacement made holds the same blocks as before
 /// along the path down to the level, with the replaced ones written as they
 /// were formatted and the others written as they were.
-fn reads_back(levels: &[Level], depth: usize, text: &str, replacement: &Replacement, formatted: &str) -> bool {
+fn reads_back(
+  levels: &[Level],
+  depth: usize,
+  text: &str,
+  replacement: &Replacement,
+  formatted: &str,
+  subscript: bool,
+) -> bool {
   let result = format!(
     "{}{}{}",
     &text[..replacement.original.start],
@@ -246,7 +266,7 @@ fn reads_back(levels: &[Level], depth: usize, text: &str, replacement: &Replacem
     &text[replacement.original.end..]
   );
   let bump = Bump::new();
-  let Ok(source_file) = crate::parser::parse(&result, &bump) else {
+  let Ok(source_file) = crate::parser::parse(&result, &bump, subscript) else {
     return false;
   };
   let mut members = source_file.children.iter().collect::<Vec<_>>();

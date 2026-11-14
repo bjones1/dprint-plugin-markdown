@@ -32,6 +32,8 @@ pub struct InlineContext<'a> {
   /// Whether this is the pass that only looks for definitions, in which case
   /// there's no point in doing the work of parsing inlines.
   pub collect_only: bool,
+  /// Whether a pair of single tildes is subscript rather than strikethrough.
+  pub subscript: bool,
   /// The buffers the blocks of the document are parsed in, kept here so that
   /// each of them doesn't have to ask for its own.
   scratch: std::cell::RefCell<InlineScratch<'a>>,
@@ -44,6 +46,7 @@ impl<'a> InlineContext<'a> {
     link_labels: Labels<'a>,
     footnote_labels: Labels<'a>,
     collect_only: bool,
+    subscript: bool,
   ) -> InlineContext<'a> {
     InlineContext {
       source,
@@ -51,6 +54,7 @@ impl<'a> InlineContext<'a> {
       link_labels,
       footnote_labels,
       collect_only,
+      subscript,
       scratch: Default::default(),
     }
   }
@@ -725,8 +729,8 @@ impl<'a, 'b> InlineParser<'a, 'b> {
     let start = self.pos;
     let length = self.run_length(start, byte);
     let end = start + length;
-    // strikethrough is written with one or two tildes, so a longer run is
-    // text of its own
+    // strikethrough and subscript are written with one or two tildes, so a
+    // longer run is text of its own
     if byte == b'~' && length > 2 {
       self.pos = end;
       return;
@@ -769,8 +773,9 @@ impl<'a, 'b> InlineParser<'a, 'b> {
     let left_flanking = !after_whitespace && (!after_punctuation || before_whitespace || before_punctuation);
     let right_flanking = !before_whitespace && (!before_punctuation || after_whitespace || after_punctuation);
 
-    // `_` and a lone `~` can't be used within a word, while `*` and `~~` can
-    let within_word = byte == b'*' || byte == b'~' && end - start == 2;
+    // `_` and a lone `~` can't be used within a word, while `*` and `~~` can,
+    // and so can a lone `~` where it's subscript (`H~2~O`)
+    let within_word = byte == b'*' || byte == b'~' && (end - start == 2 || self.context.subscript);
     if within_word {
       (left_flanking, right_flanking)
     } else {
@@ -842,9 +847,13 @@ impl<'a, 'b> InlineParser<'a, 'b> {
           let opener_len = opener.original_len;
           // the "rule of three": when a delimiter is both an opener and a
           // closer, the sum of the run lengths can't be a multiple of three
-          // unless both are
+          // unless both are. Subscript tildes pair only with a run of their
+          // own length, so the rule doesn't apply to them, and skipping a
+          // `~~` there would pair the `~` around it (`~a~~b~`)
           let both_ways = opener.can_close || closer.can_close && closer.can_open;
-          if both_ways
+          let rule_of_three = !(byte == b'~' && self.context.subscript);
+          if rule_of_three
+            && both_ways
             && (opener_len + closer_len).is_multiple_of(3)
             && (!opener_len.is_multiple_of(3) || !closer_len.is_multiple_of(3))
           {
@@ -882,6 +891,7 @@ impl<'a, 'b> InlineParser<'a, 'b> {
     );
 
     let kind = match (byte, use_len) {
+      (b'~', 1) if self.context.subscript => TextDecorationKind::Subscript,
       (b'~', _) => TextDecorationKind::Strikethrough,
       (_, 2) => TextDecorationKind::Strong,
       _ => TextDecorationKind::Emphasis,
@@ -1062,6 +1072,38 @@ pub fn is_markdown_punctuation(c: char) -> bool {
 #[cfg(test)]
 mod test {
   use super::*;
+
+  /// The kinds of the decorations at the top of the paragraph the text is.
+  fn decoration_kinds(text: &str, subscript: bool) -> Vec<TextDecorationKind> {
+    let bump = Bump::new();
+    let file = crate::parser::parse(text, &bump, subscript).unwrap();
+    let Some(Node::Paragraph(paragraph)) = file.children.first() else {
+      panic!("{text:?} should be a paragraph");
+    };
+    paragraph
+      .children
+      .iter()
+      .filter_map(|node| match node {
+        Node::TextDecoration(decoration) => Some(decoration.kind),
+        _ => None,
+      })
+      .collect()
+  }
+
+  #[test]
+  fn reads_single_tildes_as_subscript_only_with_the_option() {
+    use TextDecorationKind::*;
+    assert_eq!(decoration_kinds("H~2~O", true), [Subscript]);
+    assert_eq!(decoration_kinds("H~2~O", false), []);
+    assert_eq!(decoration_kinds("~x~", true), [Subscript]);
+    assert_eq!(decoration_kinds("~x~", false), [Strikethrough]);
+    assert_eq!(decoration_kinds("~~x~~", true), [Strikethrough]);
+    assert_eq!(decoration_kinds("~a~ ~~b~~", true), [Subscript, Strikethrough]);
+    assert_eq!(decoration_kinds("10~20 and 30~40", true), [Subscript]);
+    assert_eq!(decoration_kinds("a ~ b ~ c", true), []);
+    assert_eq!(decoration_kinds("x~y~~z", true), []);
+    assert_eq!(decoration_kinds("~a~~b~", true), []);
+  }
 
   #[test]
   fn reads_punctuation_beyond_ascii() {

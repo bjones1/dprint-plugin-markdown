@@ -1,0 +1,112 @@
+~~ subscript: true ~~
+!! should keep a subscript within a word !!
+Water is H~2~O.
+
+[expect]
+Water is H~2~O.
+
+!! should write a subscript with a single tilde !!
+~x~
+
+[expect]
+~x~
+
+!! should keep a strikethrough as two tildes !!
+~~x~~
+
+[expect]
+~~x~~
+
+!! should keep subscript and strikethrough apart !!
+~a~ and ~~b~~
+
+[expect]
+~a~ and ~~b~~
+
+!! should write emphasis around a subscript with the configured character !!
+*~x~*
+
+[expect]
+_~x~_
+
+!! should write emphasis within a subscript with the configured character !!
+~*x*~
+
+[expect]
+~_x_~
+
+!! should leave tildes between spaces as text !!
+a ~ b ~ c
+
+[expect]
+a ~ b ~ c
+
+!! should leave runs of unequal length unpaired !!
+x~y~~z
+
+[expect]
+x~y~~z
+
+!! should leave a pair of single and double tildes unpaired !!
+~a~~b~
+
+[expect]
+~a~~b~
+
+!! should keep a subscript spanning words between two words !!
+10~20 and 30~40
+
+[expect]
+10~20 and 30~40
+
+!! should keep a subscript within a strikethrough !!
+~~a ~b~ c~~
+
+[expect]
+~~a ~b~ c~~
+
+!! should keep a subscript within link text !!
+[~x~](u)
+
+[expect]
+[~x~](u)
+
+!! should keep a subscript within reference link text !!
+[~x~]
+
+[~x~]: u
+
+[expect]
+[~x~]
+
+[~x~]: u
+
+!! should keep an escaped tilde !!
+a \~b~ c
+
+[expect]
+a \~b~ c
+
+!! should leave a code span alone !!
+`~x~`
+
+[expect]
+`~x~`
+
+!! should keep a subscript within a subscript !!
+~a ~b~ c~
+
+[expect]
+~a ~b~ c~
+
+!! should keep a subscript against emphasis within a word !!
+a*b*~c~
+
+[expect]
+a*b*~c~
+
+!! should leave a closer behind an opener of another length as text, unlike pulldown-cmark !!
+~a ~~b~
+
+[expect]
+~a ~~b~

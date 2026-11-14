@@ -176,7 +176,8 @@ fn parse_source_file<'a>(
     return Ok(ParseFileResult::IgnoreFile);
   }
 
-  let file = crate::parser::parse(file_text, bump).map_err(|err| FormatError::Parse(err.to_string()))?;
+  let file =
+    crate::parser::parse(file_text, bump, config.subscript).map_err(|err| FormatError::Parse(err.to_string()))?;
   Ok(ParseFileResult::SourceFile((file, file_text)))
 }
 
@@ -203,6 +204,8 @@ fn config_to_print_options(file_text: &str, config: &Configuration) -> PrintOpti
 mod test {
   use super::*;
   use crate::configuration::ConfigurationBuilder;
+  use crate::configuration::TextWrap;
+  use dprint_core::formatting::bumpalo::Bump;
 
   #[test]
   fn strips_bom() {
@@ -216,6 +219,71 @@ mod test {
       let config = ConfigurationBuilder::new().build();
       let result = format_text(input_text, &config, |_, _, _| Ok(None)).unwrap();
       assert_eq!(result, Some("# Title\n".to_string()));
+    }
+  }
+
+  /// The kinds of the decorations in the text, in the order they're written.
+  fn decoration_kinds(text: &str, subscript: bool) -> Vec<crate::parser::TextDecorationKind> {
+    fn push(nodes: &[crate::parser::Node], kinds: &mut Vec<crate::parser::TextDecorationKind>) {
+      for node in nodes {
+        if let crate::parser::Node::TextDecoration(decoration) = node {
+          kinds.push(decoration.kind);
+        }
+        push(node.children(), kinds);
+      }
+    }
+    let bump = Bump::new();
+    let file = crate::parser::parse(text, &bump, subscript).unwrap();
+    let mut kinds = Vec::new();
+    push(file.children, &mut kinds);
+    kinds
+  }
+
+  /// What goes wrong when the text is formatted: a decoration it lost, or a
+  /// change made by formatting the result again.
+  fn formatting_problem(text: &str, config: &Configuration) -> Option<String> {
+    let once = format_text(text, config, |_, _, _| Ok(None)).ok()?;
+    let once = once.unwrap_or_else(|| text.to_string());
+    if decoration_kinds(&once, config.subscript) != decoration_kinds(text, config.subscript) {
+      return Some(format!("formatting {text:?} as {once:?} changed its decorations"));
+    }
+    match format_text(&once, config, |_, _, _| Ok(None)) {
+      Ok(None) => None,
+      twice => Some(format!("formatting {text:?} twice changed {once:?} to {twice:?}")),
+    }
+  }
+
+  /// Formats text built out of tildes, emphasis and words with `subscript`
+  /// on, checking that formatting keeps every decoration and that formatting
+  /// the result again changes nothing. A problem the same text has with the
+  /// option off isn't one of subscript's.
+  #[test]
+  fn keeps_subscripts_through_formatting() {
+    const PIECES: &[&str] = &[
+      "~", "~~", "~~~", "H", "2", "a b", " ", "*", "_", "\\~", "`", "\n", "[", "](u)",
+    ];
+    for line_width in [80, 4] {
+      let config = |subscript| {
+        ConfigurationBuilder::new()
+          .subscript(subscript)
+          .line_width(line_width)
+          .text_wrap(TextWrap::Always)
+          .build()
+      };
+      let (on, off) = (config(true), config(false));
+      let mut seed = 0x2545_f491_4f6c_dd1d_u64;
+      for _ in 0..50_000 {
+        let mut text = String::new();
+        for _ in 0..1 + seed % 9 {
+          seed ^= seed << 13;
+          seed ^= seed >> 7;
+          seed ^= seed << 17;
+          text.push_str(PIECES[(seed % PIECES.len() as u64) as usize]);
+        }
+        if let Some(problem) = formatting_problem(&text, &on) {
+          assert!(formatting_problem(&text, &off).is_some(), "{problem}");
+        }
+      }
     }
   }
 

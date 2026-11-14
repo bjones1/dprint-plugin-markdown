@@ -61,12 +61,15 @@ impl std::fmt::Display for ParseError {
 }
 
 /// Parses markdown text into a [`SourceFile`] allocated in the arena.
-pub fn parse<'a>(source: &'a str, bump: &'a Bump) -> Result<SourceFile<'a>, ParseError> {
+///
+/// `subscript` says whether a pair of single tildes is subscript rather than
+/// strikethrough.
+pub fn parse<'a>(source: &'a str, bump: &'a Bump, subscript: bool) -> Result<SourceFile<'a>, ParseError> {
   let lines = source_lines(source, bump);
   let (metadata, body_start) = parse_metadata_block(source, lines);
 
-  let (link_labels, footnote_labels) = collect_labels(source, &lines[body_start..], bump);
-  let context = InlineContext::new(source, bump, link_labels, footnote_labels, false);
+  let (link_labels, footnote_labels) = collect_labels(source, &lines[body_start..], bump, subscript);
+  let context = InlineContext::new(source, bump, link_labels, footnote_labels, false, subscript);
   let parser = BlockParser {
     source,
     context: &context,
@@ -103,9 +106,10 @@ pub fn parse_inline_content<'a>(
   bump: &'a Bump,
   link_labels: Labels<'a>,
   footnote_labels: Labels<'a>,
+  subscript: bool,
 ) -> &'a [Node<'a>] {
   let lines = source_lines(text, bump);
-  let context = InlineContext::new(text, bump, link_labels, footnote_labels, false);
+  let context = InlineContext::new(text, bump, link_labels, footnote_labels, false, subscript);
   parse_inlines(lines, &context)
 }
 
@@ -155,7 +159,12 @@ fn parse_metadata_block<'a>(source: &'a str, lines: &[ContentLine<'a>]) -> (Opti
 
 /// Finds the labels the document defines, which decide whether a `[label]` is
 /// a link or a footnote reference rather than plain text.
-fn collect_labels<'a>(source: &'a str, lines: &[ContentLine<'a>], bump: &'a Bump) -> (Labels<'a>, Labels<'a>) {
+fn collect_labels<'a>(
+  source: &'a str,
+  lines: &[ContentLine<'a>],
+  bump: &'a Bump,
+  subscript: bool,
+) -> (Labels<'a>, Labels<'a>) {
   // definitions always contain a `]:`, so most documents can skip the pass
   if !source.contains("]:") {
     return (Labels::default(), Labels::default());
@@ -163,7 +172,7 @@ fn collect_labels<'a>(source: &'a str, lines: &[ContentLine<'a>], bump: &'a Bump
 
   let mut link_labels = BumpVec::new_in(bump);
   let mut footnote_labels = BumpVec::new_in(bump);
-  let context = InlineContext::new(source, bump, Labels::default(), Labels::default(), true);
+  let context = InlineContext::new(source, bump, Labels::default(), Labels::default(), true, subscript);
   let parser = BlockParser {
     source,
     context: &context,
