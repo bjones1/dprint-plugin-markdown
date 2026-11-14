@@ -161,6 +161,7 @@ fn reads_back_decorations<'a>(nodes: &[Node], items: PrintItems<'a>, context: &C
     context.arena.bump(),
     context.link_labels(),
     context.footnote_labels(),
+    context.configuration.subscript,
   );
   written_decorations(read) == written_decorations(nodes)
 }
@@ -1632,6 +1633,7 @@ fn decoration_delimiter(decoration: &TextDecoration, parent_content: Option<Span
       ),
       TextDecorationKind::Strong => ("**", "__", context.configuration.strong_kind == StrongKind::Underscores),
       TextDecorationKind::Strikethrough => return "~~",
+      TextDecorationKind::Subscript => return "~",
     };
     // an underscore isn't read as a delimiter at all within a word, so only
     // asterisks will do there
@@ -1883,6 +1885,7 @@ fn written_delimiter(decoration: &TextDecoration, context: &Context) -> &'static
         "~"
       }
     }
+    (TextDecorationKind::Subscript, _) => "~",
   }
 }
 

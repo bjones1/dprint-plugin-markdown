@@ -130,6 +130,8 @@ pub enum TextDecorationKind {
   Emphasis,
   Strong,
   Strikethrough,
+  /// A pair of single tildes, read only when the `subscript` option is on.
+  Subscript,
 }
 
 /// A raw html block or inline html tag.

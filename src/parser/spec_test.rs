@@ -39,7 +39,7 @@ use super::debug_json::to_json;
 pub fn run_case(case: &SpecCase) -> CaseOutcome {
   let source = case.source();
   let bump = Bump::new();
-  let file = match super::parse(&source, &bump) {
+  let file = match super::parse(&source, &bump, false) {
     Ok(file) => file,
     Err(err) => {
       return CaseOutcome {

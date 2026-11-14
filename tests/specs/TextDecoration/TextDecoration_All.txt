@@ -276,3 +276,9 @@ An email _foo@example.com_ or _mailto:foo@example.com_ x.
 _**https://example.com**_ and _**https://example.com**_ and __*https://example.com*__ x.
 
 **https://example.com** and **https://example.com** x.
+
+!! should leave a single tilde within a word as text without the subscript option !!
+Water is H~2~O.
+
+[expect]
+Water is H~2~O.

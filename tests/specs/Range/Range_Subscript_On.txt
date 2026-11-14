@@ -1,0 +1,14 @@
+~~ subscript: true ~~
+!! should format only the selected paragraph and preserve subscript !!
+*before*
+
+[|*~x~*|]
+
+*after*
+
+[expect]
+*before*
+
+[|_~x~_|]
+
+*after*

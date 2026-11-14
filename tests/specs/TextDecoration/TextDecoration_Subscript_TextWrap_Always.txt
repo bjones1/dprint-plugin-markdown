@@ -1,0 +1,7 @@
+~~ subscript: true, lineWidth: 6, textWrap: always ~~
+!! should not break a line within a subscript in a word !!
+aaaa H~2~O
+
+[expect]
+aaaa
+H~2~O

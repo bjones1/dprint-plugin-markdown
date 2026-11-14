@@ -57,11 +57,12 @@
     },
     {
       "title": "Emphasis and line breaks",
-      "description": "The characters written for emphasis, strong emphasis, and hard line breaks.",
+      "description": "The characters written for emphasis, strong emphasis, and hard line breaks, and whether single tildes are subscript.",
       "properties": [
         "emphasisKind",
         "strongKind",
-        "hardBreakKind"
+        "hardBreakKind",
+        "subscript"
       ]
     },
     {
@@ -186,6 +187,18 @@
       }, {
         "const": false,
         "description": "Leaves a code span on one line, however long it runs, and breaks the text around it before or after it instead. A line break written within one is still kept where `textWrap` keeps line breaks."
+      }]
+    },
+    "subscript": {
+      "description": "Whether a pair of single tildes is subscript (`H~2~O`) rather than strikethrough. Turning it on changes how an existing `~x~` is read, and reads a pair of single tildes within words as subscript too (`10~20 and 30~40`).",
+      "type": "boolean",
+      "default": false,
+      "oneOf": [{
+        "const": true,
+        "description": "Reads `~x~` as subscript and writes it with a single tilde. `~~x~~` is still strikethrough."
+      }, {
+        "const": false,
+        "description": "Reads `~x~` as strikethrough and writes it as `~~x~~`."
       }]
     },
     "emphasisKind": {
@@ -470,6 +483,17 @@
         },
         "input": [
           "Install it by running `cargo install --locked my-tool` in a terminal."
+        ]
+      }
+    },
+    "subscript": {
+      "$ref": "#/definitions/subscript",
+      "x-example": {
+        "config": {
+          "subscript": true
+        },
+        "input": [
+          "Water is H~2~O; ~~this~~ is still struck through."
         ]
       }
     },
