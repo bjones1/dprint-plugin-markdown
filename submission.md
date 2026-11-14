@@ -86,15 +86,85 @@ about 10,000 fuzzed inputs with no other superscript change.
 
 ### Amy Smith
 
-(Same sections as Dias Jakupov)
+GitHub userid: Kenzpie
+
+#### Contributions
+
+Revised the superscript specification and completed review rounds 6–8.
+
+#### Build and run test
+
+Prompt: "Verify that you can build and run the project in the current git repo."
+
+Summarized output from Amy's own computer: **[Amy must add her OS, architecture, Rust/Cargo versions, commands, and results.]**
+
+#### Specification review rounds
+
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| 6 | 9 | Cleaned Markdown; clarified footnote scope, parsing rules, compatibility decisions, and test requirements. |
+| 7 | 5 | Resolved newline contradictions; separated renderer and parser expectations; clarified hard-break and metadata preservation. |
+| 8 | 4 | Defined rewrite safety, bounded project scope, specified fallback regions, and separated requirements from implementation guidance. |
+
+#### Last specification review
+
+LLM: lowest paid tier of ChatGPT; the specific model name was not recorded.
+
+Prompt: "Please conduct the next review round focusing on bigger issues, logic flaws, and test erros."
+
+Output: "The spec’s detailed syntax coverage is now substantial. I would prioritize a concrete safety strategy and a bounded scope moving forward."
 
 ### Alisher Arginbekov
 
-(Same sections as Dias Jakupov)
+GitHub userid: aarginbekov
+
+#### Contributions
+
+Added nested superscript/strikethrough examples and fixture requirements in commits `74429c8` and reviewed the spec for missing HTML-context fixtures in round 9; the HTML additions were removed in Dias's round 10 rewrite after the instructor requested a narrower scope.
+
+#### Build and run test
+
+Prompt: "Verify that you can build and run the project in the current git repo."
+
+Environment: Windows 11 Pro 10.0.26200, x64. Neither `cargo` nor `rustc` is on PATH, and neither exists at `C:\Users\sem1c\.cargo\bin`; therefore I could not build or run the project in this environment. No build or test command was run.
+
+#### Specification review rounds
+
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| 9 | 1 | Identified missing HTML-context fixtures; these were later removed in round 10 to follow the instructor's request to narrow the specification. |
+
+#### Last specification review
+
+LLM: OpenAI Codex, GPT-6.
+
+Prompt: "Review the superscript spec for claims that have no required acceptance fixtures. Focus on inline HTML: distinguish carets in HTML attributes, text between inline tags, and raw HTML blocks. Report only concrete coverage gaps and propose the smallest spec change."
+
+Output: The spec described how superscript markers behave in HTML attributes, inline text between tags, and HTML blocks, but did not require fixtures for these cases. I added examples and requirements to check the renderer output, parser AST, and formatter behavior. These additions were later removed in the round 10 scope reduction.
 
 ### Aslan Tasmagambetov
 
-(Same sections as Dias Jakupov)
+GitHub userid: tasma-07
+
+#### Contributions
+
+Supplied the specification version used as the basis for the PR and completed review rounds 2–3.
+
+#### Build and run test
+
+Prompt: "Verify that you can build and run the project in the current git repo."
+
+Summarized output from Aslan's own computer: **[Aslan must add his OS, architecture, Rust/Cargo versions, commands, and results.]**
+
+#### Specification review rounds
+
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| 2–3 | 3 main | Made caret runs count as pairable; rewrote footnote handling and added wikilink, heading-attribute, and formatter-configuration cases. |
+
+#### Last specification review
+
+The supplied PR material does not identify Aslan's LLM, last-round prompt, or output. **[Aslan must add these details.]**
 
 Final submission
 ----------------
