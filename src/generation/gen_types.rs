@@ -208,6 +208,12 @@ pub struct Context<'a> {
   block_quote_content_starts: Vec<Option<usize>>,
   text_wrap_disabled_count: u32,
   decorations_preserved_count: u32,
+  /// How deep within the text a link is matched by the context is, where a
+  /// line break would change the label.
+  link_label_count: u32,
+  /// How deep within a block whose `<br>` tags get no line break after them the
+  /// context is.
+  br_line_breaks_off_count: u32,
   enclosing_decoration: Option<Span>,
   /// Where the text that ends an atx heading starts, when the hashes it ends
   /// with have to be escaped so that they aren't read as the heading's closing
@@ -219,6 +225,9 @@ pub struct Context<'a> {
   escaped_block_starts: Vec<BlockStartEscape>,
   /// Where each bit of text written at the start of a line starts.
   line_start_texts: LineStarts,
+  /// Where each line of the setext heading being written starts, which only
+  /// `lineBreakAfterBr` reads.
+  heading_line_starts: LineStarts,
   /// Where the block being written ends, which bounds how far the text of one
   /// of its lines can run.
   block_end: Option<usize>,
@@ -286,10 +295,13 @@ impl<'a> Context<'a> {
       block_quote_content_starts: Vec::new(),
       text_wrap_disabled_count: 0,
       decorations_preserved_count: 0,
+      link_label_count: 0,
+      br_line_breaks_off_count: 0,
       enclosing_decoration: None,
       escaped_closing_hashes: None,
       escaped_block_starts: Vec::new(),
       line_start_texts: LineStarts::default(),
+      heading_line_starts: LineStarts::default(),
       block_end: None,
       dropped_breaks: Default::default(),
       delimiter_runs: None,
@@ -513,6 +525,45 @@ impl<'a> Context<'a> {
     let result = func(self);
     self.decorations_preserved_count -= 1;
     result
+  }
+
+  /// Writes out the text a link is matched by, which a line break written after
+  /// a `<br>` would change.
+  pub fn with_link_label<T>(&mut self, func: impl FnOnce(&mut Context<'a>) -> T) -> T {
+    self.link_label_count += 1;
+    let result = func(self);
+    self.link_label_count -= 1;
+    result
+  }
+
+  pub fn is_in_link_label(&self) -> bool {
+    self.link_label_count > 0
+  }
+
+  /// Writes out a block whose `<br>` tags get no line break after them.
+  pub fn with_br_line_breaks_off<T>(&mut self, func: impl FnOnce(&mut Context<'a>) -> T) -> T {
+    self.br_line_breaks_off_count += 1;
+    let result = func(self);
+    self.br_line_breaks_off_count -= 1;
+    result
+  }
+
+  pub fn are_br_line_breaks_off(&self) -> bool {
+    self.br_line_breaks_off_count > 0
+  }
+
+  /// Writes out a setext heading's content knowing where its lines start.
+  pub fn with_heading_line_starts<T>(&mut self, starts: LineStarts, func: impl FnOnce(&mut Context<'a>) -> T) -> T {
+    let previous = std::mem::replace(&mut self.heading_line_starts, starts);
+    let result = func(self);
+    self.heading_line_starts = previous;
+    result
+  }
+
+  /// Whether a line of the paragraph or setext heading being written starts
+  /// at the position.
+  pub fn is_block_line_start(&self, start: usize) -> bool {
+    self.line_start_texts.contains(start) || self.heading_line_starts.contains(start)
   }
 
   /// Runs within the content of a text decoration, so that the ones nested in

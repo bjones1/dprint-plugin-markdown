@@ -1,0 +1,362 @@
+~~ lineBreakAfterBr: true, textWrap: sentence ~~
+!! spec example 1 !!
+a<br>b
+
+[expect]
+a<br>
+b
+
+!! spec example 3 !!
+a <br> b
+
+[expect]
+a <br>
+b
+
+!! spec example 4 !!
+a<BR>b
+
+[expect]
+a<BR>
+b
+
+!! spec example 5 !!
+a<br/>b
+
+[expect]
+a<br/>
+b
+
+!! spec example 6 !!
+a<br />b
+
+[expect]
+a<br />
+b
+
+!! spec example 7 !!
+a<br class="x">b
+
+[expect]
+a<br class="x">
+b
+
+!! spec example 8 !!
+a<br><br>b
+
+[expect]
+a<br><br>
+b
+
+!! spec example 9 !!
+a<br>
+
+[expect]
+a<br>
+
+!! spec example 11 !!
+a</br>b
+
+[expect]
+a</br>b
+
+!! spec example 12a !!
+a<br>- b
+
+[expect]
+a<br>- b
+
+!! spec example 12b !!
+a<br># b
+
+[expect]
+a<br># b
+
+!! spec example 12c !!
+a<br>> b
+
+[expect]
+a<br>> b
+
+!! spec example 12d !!
+a<br><div>b</div>
+
+[expect]
+a<br><div>b</div>
+
+!! spec example 12e !!
+a<br>===
+
+[expect]
+a<br>===
+
+!! spec example 13a !!
+<br>b
+
+[expect]
+<br>b
+
+!! spec example 13b !!
+- <br>b
+
+[expect]
+- <br>b
+
+!! spec example 13c !!
+> <br>b
+
+[expect]
+> <br>b
+
+!! spec example 13d !!
+- [ ] <br>b
+
+[expect]
+- [ ] <br>b
+
+!! spec example 13e !!
+a\
+<br>b
+
+[expect]
+a\
+<br>b
+
+!! spec example 13f !!
+a
+<br>b
+
+[expect]
+a
+<br>b
+
+!! spec example 14 !!
+<br><br>b
+
+[expect]
+<br><br>
+b
+
+!! spec example 15 !!
+# a<br>b
+
+[expect]
+# a<br>b
+
+!! spec example 17 !!
+| x |
+| - |
+| a<br>b |
+
+[expect]
+| x      |
+| ------ |
+| a<br>b |
+
+!! spec example 18 !!
+Term<br>term
+: definition
+
+[expect]
+Term<br>term
+: definition
+
+!! spec example 19 !!
+- a<br>b
+
+[expect]
+- a<br>
+  b
+
+!! spec example 20 !!
+> a<br>b
+
+[expect]
+> a<br>
+> b
+
+!! spec example 21 !!
+[^1]: a<br>b
+
+[expect]
+[^1]: a<br>
+    b
+
+!! spec example 22a !!
+[a<br>b](/u)
+
+[expect]
+[a<br>
+b](/u)
+
+!! spec example 22b !!
+[a<br>b][r]
+
+[r]: /u
+
+[expect]
+[a<br>
+b][r]
+
+[r]: /u
+
+!! spec example 23a !!
+[a<br>b]
+
+[a<br>b]: /u
+
+[expect]
+[a<br>b]
+
+[a<br>b]: /u
+
+!! spec example 23b !!
+[a<br>b][]
+
+[a<br>b]: /u
+
+[expect]
+[a<br>b][]
+
+[a<br>b]: /u
+
+!! spec example 24 !!
+a<br>\
+b
+
+[expect]
+a<br>\
+b
+
+!! spec example 26 !!
+a. <br>b
+
+[expect]
+a. <br>
+b
+
+!! spec example 30 !!
+[a<br>](/u)b
+
+[expect]
+[a<br>](/u)b
+
+!! spec example 31 !!
+_<br>b_ c
+
+[expect]
+_<br>
+b_ c
+
+!! spec example 33 !!
+a<br>www.example.com
+
+[expect]
+a<br>www.example.com
+
+!! spec example 34 !!
+a<br>https://example.com
+
+[expect]
+a<br>
+https://example.com
+
+!! spec example 35 !!
+a<br>[^1]: x
+
+[^1]: y
+
+[expect]
+a<br>[^1]: x
+
+[^1]: y
+
+!! spec example 36a !!
+a<br>2. b
+
+[expect]
+a<br>2. b
+
+!! spec example 38 !!
+a<br>*.b**
+
+[expect]
+a<br>*.b**
+
+!! spec example 39a !!
+a<br>**b**
+
+[expect]
+a<br>**b**
+
+!! spec example 39b !!
+a<br>[b](/u)
+
+[expect]
+a<br>[b](/u)
+
+!! spec example 40 !!
+a | b<br>c | d
+- | -
+
+[expect]
+a | b<br>c | d
+
+- | -
+
+!! spec example 41a !!
+x <pre>a<br>b</pre>
+
+[expect]
+x <pre>a<br>b</pre>
+
+!! spec example 41b !!
+x <PRE>_a<br>b_</PRE>
+
+[expect]
+x <PRE>_a<br>b_</PRE>
+
+!! spec example 43 !!
+- a | b<br>c | d
+  - | -
+
+[expect]
+- a | b<br>c | d
+  - | -
+
+!! spec example 44 !!
+> [!NOTE]
+> <br>b
+
+[expect]
+> [!NOTE]
+> <br>b
+
+!! spec example 45 !!
+x <script>s = "a<br>b"</script>
+
+[expect]
+x <script>s = "a<br>b"</script>
+
+!! spec example 47 !!
+- a | b<br>c | d
+  * | -
+
+[expect]
+- a | b<br>c | d
+  - | -
+
+!! spec example 48 !!
+a | b<br>c | d
+* | -
+
+[expect]
+a | b<br>c | d
+
+- | -
+
+!! spec example 49 !!
+x <code>a<br>b</code>
+
+[expect]
+x <code>a<br>b</code>

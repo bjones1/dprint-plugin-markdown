@@ -1,0 +1,33 @@
+~~ lineBreakAfterBr: true, heading.kind: setext ~~
+!! spec example 13g !!
+<br>b
+===
+
+[expect]
+<br>b
+=====
+
+!! spec example 16a !!
+a<br>b
+===
+
+[expect]
+a<br>
+b
+=====
+
+!! spec example 37 !!
+a<br>* *b*
+===
+
+[expect]
+a<br>* _b_
+==========
+
+!! spec example 42 !!
+# a<br>b
+
+[expect]
+a<br>
+b
+=====

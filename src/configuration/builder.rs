@@ -95,6 +95,13 @@ impl ConfigurationBuilder {
     self.insert("hardBreakKind", value.to_string().into())
   }
 
+  /// Whether to write a line break after an inline `<br>` tag, wherever moving
+  /// what follows it to the start of a line can't change the document.
+  /// Default: `false`
+  pub fn line_break_after_br(&mut self, value: bool) -> &mut Self {
+    self.insert("lineBreakAfterBr", value.into())
+  }
+
   /// The maximum number of consecutive blank lines to keep between blocks.
   /// Default: 1
   pub fn max_blank_lines(&mut self, value: u32) -> &mut Self {
@@ -289,6 +296,7 @@ mod tests {
       .emphasis_kind(EmphasisKind::Asterisks)
       .strong_kind(StrongKind::Underscores)
       .hard_break_kind(HardBreakKind::DoubleSpace)
+      .line_break_after_br(true)
       .max_blank_lines(2)
       .heading_kind(HeadingKind::Atx)
       .heading_blank_lines_above(2)
@@ -314,7 +322,7 @@ mod tests {
       .ignore_end_directive("test");
 
     let inner_config = config.get_inner_config();
-    assert_eq!(inner_config.len(), 31);
+    assert_eq!(inner_config.len(), 32);
     let diagnostics = resolve_config(inner_config, &Default::default()).diagnostics;
     assert_eq!(diagnostics.len(), 0);
   }

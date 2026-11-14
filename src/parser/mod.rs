@@ -28,6 +28,7 @@ use dprint_core::formatting::bumpalo::Bump;
 pub use ast::*;
 
 pub use block::block_start_escape;
+pub use block::is_table_delimiter_shape;
 pub use block::is_whole_html_block;
 pub use block::line_start_escape;
 pub use block::starts_block_at_block_start;
