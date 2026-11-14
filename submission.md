@@ -118,7 +118,12 @@ Revised the superscript specification and completed review rounds 6–8.
 
 Prompt: "Verify that you can build and run the project in the current git repo."
 
-Summarized output from Amy's own computer: **[Amy must add her OS, architecture, Rust/Cargo versions, commands, and results.]**
+- Environment: Windows; VS Code PowerShell terminal; Cargo 1.98.0.
+- `cargo build`: completed successfully.
+- `cargo test`: the provided output showed 192 specification tests
+  and 2 documentation tests passed, with no failures shown.
+- Execution was verified through the test suite; the plugin was
+  not separately tested inside dprint.
 
 #### Specification review rounds
 
