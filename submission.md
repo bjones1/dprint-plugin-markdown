@@ -148,7 +148,11 @@ Added nested superscript/strikethrough examples and fixture requirements in comm
 
 Prompt: "Verify that you can build and run the project in the current git repo."
 
-Environment: Windows 11 Pro 10.0.26200, x64. Neither `cargo` nor `rustc` is on PATH, and neither exists at `C:\Users\sem1c\.cargo\bin`; therefore I could not build or run the project in this environment. No build or test command was run.
+Summarized output on commit `9f0de92`:
+
+- Environment: Windows 11 Pro 10.0.26200, x64; rustc 1.98.0 and cargo 1.98.0 (pinned by `rust-toolchain.toml`); Visual Studio Build Tools 2022 17.14.45 with the MSVC x64 toolchain and Windows 11 SDK 10.0.26100.
+- `cargo build --locked`: finished, exit code 0.
+- `cargo test --locked`: exit code 0; 160 unit tests, 10 CommonMark checks, 1 corpus check, 8 HTML parser tests, 2 nesting tests, 9 newline tests, 39 parser spec tests, 192 formatter spec tests, and 2 doc tests passed; 0 failed.
 
 #### Specification review rounds
 
