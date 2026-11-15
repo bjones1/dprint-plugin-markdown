@@ -280,7 +280,170 @@ and 6 ask for tests of what the spec files and fuzz test already cover.
 
 GitHub userid: jacobtimmons03-cyber
 
-(Jacob's final contributions, review tables and last reviews)
+#### Contributions
+
+Added a subscript-enabled range-formatting regression fixture that checks selected-paragraph formatting, preservation of single-tilde subscript syntax, unchanged surrounding paragraphs, and repeated-format stability.
+
+Commit: `05705c03cda0f809f35b495c3f4b1e8234f109f7` (`tests/specs/Range/Range_Subscript_On.txt`). The fixture passed independent review with zero findings and was pushed to team PR #3.
+
+#### Specification review rounds
+
+Model: `gpt-6-astra`. All four final-stage reviews examined commit `05705c03cda0f809f35b495c3f4b1e8234f109f7`; they are separate from the draft reviews and the focused pre-commit fixture review.
+
+| Round | Critical | Major | Minor | Verdict | Main changes made |
+| ----- | -------- | ----- | ----- | ------- | ----------------- |
+| 1 | 0 | 0 | 0 | READY | No changes required. |
+| 2 | 0 | 0 | 0 | READY | No changes required. |
+
+#### Last specification review
+
+Model: `gpt-6-astra`. Exact Round 2 prompt:
+
+```text
+Literate Programming Project 2 Final — Jacob Timmons
+Final Specification Review, Round 2
+
+Repository:
+C:\Users\jacob\Documents\Codex\dprint-plugin-markdown-project2-team
+
+Branch: subscript-spec
+Reviewed HEAD: 05705c03cda0f809f35b495c3f4b1e8234f109f7
+Specification: src/parser/subscript-spec.md
+Team PR: https://github.com/bjones1/dprint-plugin-markdown/pull/3
+
+Perform a second independent READ-ONLY specification review.
+
+Round 1 returned READY with 0/0/0 findings. Do not simply repeat that review or invent findings to justify another round.
+
+Focus this pass on whether the written specification is complete, unambiguous, internally consistent, and independently testable, especially for:
+- Enabled versus disabled subscript behavior
+- Tilde-run interactions and strikethrough compatibility
+- Delimiter boundaries, escaping, whitespace, and nesting
+- Wrapping, formatting stability, and configuration examples
+- Any mismatches between normative rules and examples
+
+Use the relevant existing source and fixtures to verify concrete claims, but do not assume implementation behavior is automatically correct when judging the specification. Respect documented intentional deviations from pulldown-cmark.
+
+Report only genuine, actionable defects, with severity, exact location, evidence, and minimal suggested correction. Exclude cosmetic suggestions, speculative cases, and unrelated functionality.
+
+Include:
+- Reviewed HEAD and working-tree state
+- Critical / Major / Minor finding counts
+- Verdict: READY or NEEDS_CORRECTION
+- Exact model identifier
+- Complete review response suitable for submission.md
+
+STRICTLY READ-ONLY. No edits, tests that change files, commits, pushes, merges, or PR modifications.
+```
+
+Complete Round 2 response:
+
+**Literate Programming Project 2 Final — Jacob Timmons**
+**Final Specification Review, Round 2**
+
+- **Branch:** `subscript-spec`
+- **Reviewed HEAD:** `05705c03cda0f809f35b495c3f4b1e8234f109f7`
+- **Working tree:** Clean before and after review.
+- **Exact model identifier:** `gpt-6-astra`
+
+**No substantive actionable defects found.**
+
+This pass checked the written requirements and examples for ambiguity and contradictions, using source and fixtures as supporting evidence:
+
+- Enabled and disabled behavior is distinguishable and testable. The default-off compatibility requirement and single-/double-tilde rules agree with the corresponding examples.
+- The specification explicitly retains existing delimiter, escape, code-span, and link rules except for its listed changes. The unequal-run behavior at lines 60–62 is a documented intentional deviation, not an unresolved contradiction.
+- Nested formatting, escaped tildes, literal code, reference links, and whitespace examples agree with the stated rules.
+- Formatting stability and semantic preservation are separate requirements at lines 71–76. The wrapping example identifies a fixture that explicitly supplies `textWrap: always` and `lineWidth: 6`; emphasis examples use the documented underscore default.
+
+I found no material ambiguity requiring a new design decision or additional specification content. No tests were run during this round, and no files or PR state were changed. This is the complete review response.
+
+- **Critical / Major / Minor finding counts: 0 / 0 / 0**
+- **Unresolved blocking decisions: None identified**
+- **Verdict: READY**
+
+#### Implementation review rounds
+
+Model: `gpt-6-astra`.
+
+| Round | Critical | Major | Minor | Verdict | Main changes made |
+| ----- | -------- | ----- | ----- | ------- | ----------------- |
+| 1 | 0 | 0 | 0 | READY | No changes required. |
+| 2 | 0 | 0 | 0 | READY | No changes required. |
+
+#### Last implementation review
+
+Model: `gpt-6-astra`. Exact Round 2 prompt:
+
+```text
+Literate Programming Project 2 Final — Jacob Timmons
+Final Implementation Review, Round 2
+
+Repository:
+C:\Users\jacob\Documents\Codex\dprint-plugin-markdown-project2-team
+
+Branch: subscript-spec
+Expected HEAD: 05705c03cda0f809f35b495c3f4b1e8234f109f7
+Team PR: https://github.com/bjones1/dprint-plugin-markdown/pull/3
+Specification: src/parser/subscript-spec.md
+
+Perform an independent, READ-ONLY second final-stage implementation review.
+
+Implementation Review Round 1 returned READY with zero findings and passed the complete Rust test suite. Specification Reviews 1 and 2 also returned READY. Do not repeat earlier conclusions without checking them or manufacture new issues.
+
+Focus specifically on remaining integration and regression risks:
+1. Confirm subscript disabled by default does not unintentionally change existing single-tilde or double-tilde behavior.
+2. Inspect enabled-mode handling at delimiter boundaries: unequal tilde runs, punctuation, escaping, whitespace, nested inline formatting, code spans, and links.
+3. Verify parser-to-formatter consistency, including semantic preservation and repeated formatting.
+4. Examine range-formatting integration and the new Range_Subscript_On.txt regression for meaningful isolation.
+5. Check configuration propagation through relevant parsing, formatting, and reparsing paths.
+6. Identify concrete gaps only if supported by the specification and implementation evidence.
+
+Use focused tests or minimal reproducible inputs when needed. The full suite passed in Round 1; rerun it only if useful to validate a particular finding. Report actual test execution accurately.
+
+Report ONLY substantive, actionable defects. For each provide severity, exact source location, evidence, observable impact, and the smallest necessary fix. Do not request unrelated refactoring, speculative coverage, or new features.
+
+Finish with:
+- Reviewed HEAD and working-tree state
+- Critical / Major / Minor finding counts
+- Tests executed and results, or explicit verification limits
+- Verdict: READY or NEEDS_CORRECTION
+- Exact model identifier
+
+Return the complete review response for preservation in submission.md.
+
+STRICTLY READ-ONLY: No edits, staging, commits, pushes, merges, configuration changes, or PR modifications.
+```
+
+Complete Round 2 response:
+
+**Literate Programming Project 2 Final — Jacob Timmons**
+**Final Implementation Review, Round 2**
+
+**No substantive actionable defects found.**
+
+Rechecked configuration propagation through initial parsing, formatter reparsing, and range replacement validation. The flag defaults to `false`; enabled-only parser changes remain gated appropriately. Delimiter matching, escapes, code spans, nesting, and link handling are consistent with the approved specification, including its deliberate unequal-run behavior.
+
+The range regression meaningfully checks isolation: the selected paragraph changes from `*~x~*` to `_~x~_`, while surrounding emphasis remains untouched. Its expected-range markers also enable repeated-format validation.
+
+Focused tests independently executed this round:
+
+| Command                                               | Result                                                              |
+| ----------------------------------------------------- | ------------------------------------------------------------------- |
+| `cargo test --locked --lib subscript`                 | PASS — 2 tests, including generated preservation/idempotence checks |
+| `cargo test --locked --test specs Subscript`          | PASS — 3 fixture files, including wrapping and range isolation      |
+| `cargo test --locked --test specs TextDecoration_All` | PASS — default-off decoration compatibility fixture                 |
+
+The full suite was not rerun this round. These focused results and source inspection revealed no reproducible integration regression; they do not establish correctness for every possible input.
+
+No source, fixture, configuration, Git, or PR changes were made. This is the complete review response.
+
+- **Reviewed branch:** `subscript-spec`
+- **Reviewed HEAD:** `05705c03cda0f809f35b495c3f4b1e8234f109f7`
+- **Working-tree state:** Clean before and after review
+- **Critical / Major / Minor:** **0 / 0 / 0**
+- **Tests executed:** All three focused commands above passed
+- **Verdict:** **READY**
+- **Exact model identifier:** `gpt-6-astra`
 
 ### Amir Adilov
 
