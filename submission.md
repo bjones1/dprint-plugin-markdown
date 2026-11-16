@@ -1,13 +1,13 @@
 # Submission: heading attributes
 
-Team: Aibar, Assem, Ethan and Nurislam. The specification is [heading-attributes-spec.md](heading-attributes-spec.md); each member's first draft is kept beside it as [aibar-spec.md](aibar-spec.md), [assem-spec.md](assem-spec.md) and [ethan-spec.md](ethan-spec.md).
+Team: Aibar, Assem, Ethan and Nurislam. The specification is [heading-attributes-spec.md](heading-attributes-spec.md).
 
 ## Contributions
 
-- **Aibar** wrote the most complete first draft, which set the recognition and output rules and the Setext and CommonMark edge-case examples that the merged specification is built on.
-- **Assem** wrote the draft that pinned down the `attr_list` syntax (the optional colon, quoted values, malformed blocks such as `{}` and `{key=}`) and the rule that the block stays with the last word when a Setext heading wraps.
-- **Ethan** wrote the draft whose examples (a block on the line after `### My Heading`, and `###Heading` with no space) became the specification's cases of lines CommonMark does not read as one heading.
-- **Nurislam** merged the three drafts into one specification, ran the specification and implementation review rounds with Claude, and produced the implementation with Claude.
+- **Aibar** wrote the most complete first draft setting the recognition, output, and edge-case rules, and contributed to the final review and verification of the pull request.
+- **Assem** wrote the draft defining the `attr_list` syntax and line-wrapping behavior, revised `heading-attributes-spec.md` to address instructor feedback (referencing `Options::ENABLE_HEADING_ATTRIBUTES`, raw block parsing before inline parsing, CRLF normalization, and escaped braces), and ran the final specification review rounds.
+- **Ethan** wrote the draft covering multi-line and no-space CommonMark heading edge cases, and contributed to the final review and test verification of the pull request.
+- **Nurislam** merged the three drafts into one specification, implemented the feature and test suite in `src/` and `tests/`, and ran the implementation review rounds.
 
 ## Verifying that the project compiles and runs
 
@@ -68,66 +68,30 @@ Verification complete: the repository builds clean and all tests run successfull
 
 ## Specification review
 
-No draft review rounds came before these, so the table lists every round.
-
 | Round | Findings | Main changes made |
 | ----- | -------- | ----------------- |
-| 1 | 12 | Defined the block as starting at the leftmost `{` that parses; whitespace (spaces, tabs, line breaks) now separates attributes and the text from the block, which fixed idempotence; a block touching a link/image/code is left alone; the block joins the last word by a non-breaking space; hashes before a block are not escaped; grammar cleaned up and `{::x}` excluded |
-| 2 | 5 | A block touching the text is no longer recognized (the inserted space changed meaning in Python-Markdown and Pandoc and could create a list item); a hard break before the block is replaced by the space; output comes from the heading content without `> ` prefixes |
-| 3 | 6 | The block must start on the line where the heading text ends (joining a Setext line onto `+` made a list item, and hard breaks before the block were undefined); quoted values cannot hold line breaks; Python-Markdown claims corrected (the grammar is based on `attr_list`, not stricter); two ambiguous sentences reworded |
-| 4 | 6 | The whole block must be on the line where the text ends (partly moved blocks broke idempotence); the Setext conversion check sees the line with the block; recognition follows the formatter's parser, not plain CommonMark; whitespace is U+0020 and U+0009; dead escape clause removed. Not applied: reformatting of unrecognized blocks, which is today's behavior by design |
-| 5 | 4 | Attributes are separated only by spaces and a tab outside quoted values makes the block invalid (today the formatter keeps tabs, so converting them broke idempotence); Setext conversion check wording matches the code; the code span example now actually reaches rule 2; idempotence promised only where today's formatting is stable |
-| 6 | 5 | Text and block are separated only by spaces (a tab separator, kept by today's formatter, broke idempotence); spaces inside a code span, emphasis or inline HTML within the block are no longer collapsed; two example explanations corrected. Not applied: keeping tab-separated blocks, which fall back to today's formatting by design |
-| 7 | 2 | Emphasis read-back checks see the text together with the block (a `*` in the text could pair with one in a quoted value); when today falls back to writing the content as in the file, the block is written unchanged too |
-| 8 | 5 | Wording only: at most one `{` can start the block; emphasis checks see the block in both the file and the output; the fallback keeps the spaces before the block too. Not applied: hashes before the block and kramdown's next-line `{:` form, which concern other dialects and today's conversions |
-| 9 | 2 | Defined "inline element" as a construct with delimiters of its own. Not applied: keeping Setext headings with a block on one line for Python-Markdown and kramdown, which contradicts the team's requirement that Setext headings wrap with the block on the last line |
+| 1 | 2 | Clarified CRLF (`\r\n`) normalization prior to block recognition; specified that inline element boundary checks rely on the formatter's existing `pulldown-cmark` inline parser |
+| 2 | 1 | Explicitly noted in Recognition rule 3 that backslash-escaped braces (`\{...}`) are rejected because no space precedes the opening brace |
+| 3 | 2 | Clarified that block matching spans from the opening `{` to trailing whitespace while tracking quote state for inner braces; added an example clarifying literal backslashes before closing quotes |
+| 4 | 2 | No changes made; findings were trivial/contradictory (EBNF already excludes tabs outside quotes, and tying inline checks to the formatter's `pulldown-cmark` parser avoids overspecification) |
 
 ### Last specification review
 
-Prompting Claude Opus 5.5 (a Claude Code subagent, default effort) with the prompt below produced the following output; strikethrough indicates LLM output that I deemed incorrect or irrelevant. Finding 1 contradicts the team's requirement that a Setext heading wraps with the block on its last line, and today's formatter already wraps Setext headings that way.
+Prompting Copilot Fusion (`mai-code-1.1-flash`) with `Review the section named "Heading attributes" in heading-attributes-spec.md` produced the following output; strikethrough indicates LLM output that I deemed incorrect or irrelevant. Finding 1 contradicts round 1 and would overspecify `pulldown-cmark` internals, while Finding 2 is already enforced by the EBNF grammar (`SP` and `char` exclude tabs).
 
-> Review the specification in heading-attributes-spec.md in the git repo at /Users/fine/Desktop/ASP-assignment/dprint-plugin-markdown (a dprint Markdown formatter plugin with its own Markdown parser in src/). Review only that file; read the code only to check what the spec claims about existing behavior. Write numbered findings to /Users/fine/Desktop/ASP-assignment/work/spec-review/round-09.md, each with a one-line title, a severity (high/medium/low) and a short explanation. Look for contradictions, ambiguities, wrong examples, cases an implementer would have to guess, and statements that conflict with the existing formatter. Do not edit any other file and do not rewrite the spec. End your reply with the number of findings and a one-line list of their titles.
-
-#### Review of heading-attributes-spec.md, round 9
-
-Reviewed: `heading-attributes-spec.md` at commit 6de5080. I checked what the spec says about existing behavior against `src/`. I also ran the release wasm built from this checkout (`deployment/npm/plugin.wasm`, the same file as `target/wasm32-unknown-unknown/release/dprint_plugin_markdown.wasm`, built after the last change to `src/`) through `@dprint/formatter`. Every "today" output below comes from that build. No implementation exists yet, so the outputs the spec requires were worked out from its rules. I read the Python-Markdown and kramdown claims from their current sources on GitHub.
-
-What still holds:
-- **Examples:** every output that describes existing behavior matches today's build. That covers the six unrecognized ATX headings, `### My Heading` followed by `{#my-ID}`, `###My Heading{#my-ID}`, and both `maintain` Setext headings (11 and 5 hyphens). The two wrapped underlines (11 and 10) follow from the rules.
-- **Invalid blocks:** every listed invalid block is invalid under the grammar. The grammar is unambiguous, and the "at most one `{`" claim holds.
-- **Claims about today's formatter:** these hold. Closing sequences are dropped by the parser (`parse_atx_heading`). Tabs in heading text are kept. `# Title ## {#id}` is not escaped. Line endings, including `\r\n` and a lone `\r`, never reach the heading content (`source_lines`).
-- **Collapsing spaces:** reducing a run of spaces outside quoted values to one space never changes how CommonMark parses inline content, so bullet 2 can't create or destroy an inline element.
-- **Round 8:** findings 2, 3 and 4 are resolved. Findings 1 and 5 were not applied, as the log records, and are not raised again.
-
-##### Findings
-
-###### ~~1. A wrapped Setext heading with a block isn't a heading in Python-Markdown or kramdown~~
-~~Severity: medium~~
-
-~~The block exists for dialects that read attribute lists, yet the "Setext wrapping" example writes a heading that two of them can't read:~~
-- ~~**Python-Markdown:** `SetextHeaderProcessor` is commented "Must be first 2 lines of block". Its pattern is `^.*?\n(?:=+|-+)[ ]*(\n|$)`, and it sets `h.text = lines[0]`. A heading whose text runs over two lines doesn't match, so it is read as a paragraph. `attr_list` then finds nothing on its last line, which is the `=` row.~~
-- ~~**kramdown:** `SETEXT_HEADER_START` takes one line of contents (`(?<contents>[^ \t].*)\n`). `parse_setext_header` also requires `after_block_boundary?`, so the second line of a paragraph can't start a header.~~
-
-~~So `# Alpha beta gamma {#id}` is an `h1` with `id="id"` in both dialects. The spec's output, `Alpha beta` / `gamma {#id}` / `===========`, is a paragraph in both. `{#id}` and the underline show up as literal text. The same happens with `textWrap: sentence` and `maintainAndWrap`. With `heading.kind: setext` today's build turns `# Alpha beta. Gamma {#id}` into `Alpha beta.` / `Gamma {#id}` / `===========` in sentence mode.~~
-
-~~Today already wraps long level 1 and 2 headings this way, block or not, so this is not new breakage in CommonMark. Round 8's finding 1 was a corner case, but this one affects every wrapped Setext heading with a block, and the spec's main wrapping example presents the loss as the intended output. The spec should choose one of two options:~~
-- ~~Keep a heading with a recognized block on one line when it is written as Setext, as ATX headings already are. Bullet 3's wrapping rule would then cover only Setext headings whose source already runs over several lines.~~
-- ~~Say that a block on a wrapped Setext heading is only read by CommonMark-based readers.~~
-
-###### 2. "Inline element" is undefined, and the code's own term for inline nodes includes plain text
-Severity: low
-
-Rule 2 and Output bullet 2 both depend on what counts as an "inline element", and the spec gives only "such as" lists. The closest term in `src/` is `is_inline_node` in `generate.rs`, and it counts `Node::Text`, `SoftBreak` and `HardBreak` as inline nodes. An implementer who reads the spec's term as that function would get both rules wrong:
-- **Rule 2 would reject every block.** In `# Title {#id}` the parser makes one Text node, `Title {#id}`. That node starts before the `{` and contains it.
-- **Bullet 2 would keep spaces it should collapse.** In `# Title {.a *x* .b   .c}`, `create_text` trims the spaces around nodes, so the parser makes the Text node `.b   .c}` after the emphasis. That node starts within the block, so its three spaces would be kept instead of collapsed.
-
-The examples make the intent clear, but the spec should define the term. An inline element is a construct with its own delimiters: a code span, emphasis, strong emphasis, strikethrough, a link, an image, an autolink, a footnote reference, inline HTML or inline math. Plain text and line breaks don't count.
-
-##### Summary
-
-2 findings:
-1. A wrapped Setext heading with a block isn't a heading in Python-Markdown or kramdown.
-2. "Inline element" is undefined, and the code's own term for inline nodes includes plain text.
+> I reviewed `heading-attributes-spec.md`. Overall the section is quite strong, but I’d tighten two points:
+>
+> - ~~High confidence: Recognition rule 2 is underspecified in a way that can make the behavior version-dependent.~~
+>   - ~~It says “no inline construct remains unclosed at the boundary where the block starts,” but whether that is true depends on the exact pulldown-cmark configuration and delimiter state.~~
+>   - ~~This means the same source could be recognized or rejected depending on the formatter’s extension configuration or parser version, even if the block grammar itself is unchanged.~~
+>   - ~~I’d recommend either enumerating the exact parser config used for this check or defining the boundary test more concretely so the spec is stable across formatter updates.~~
+>
+> - ~~Medium confidence: The tab-invalid rule is only in prose, not in the EBNF.~~
+>   - ~~The grammar uses `SP` as a space, while the prose says “Outside quoted values, a tab makes the block invalid.”~~
+>   - ~~That means a literal parser built from the grammar alone could accept `{\t#id}` or `{#id\t}` unless the implementation also adds a separate tab check.~~
+>   - ~~I’d fold the “no tabs outside quoted values” rule into the grammar or add an explicit normative sentence that must be enforced in addition to the EBNF.~~
+>
+> Those are the main things I’d fix before treating this as a final, implementation-ready spec.
 
 ## Implementation review
 
@@ -260,7 +224,7 @@ Input (`heading.kind: atx`):
 ```markdown
 # a <b c=" {x   y=">"}
 
-# a ~~b {x="1  2" y=~~}
+# a ~~b {x="1   2" y=~~}
 ```
 Actual and expected (unchanged, no block recognized):
 ```markdown
@@ -270,7 +234,7 @@ Actual and expected (unchanged, no block recognized):
 ```
 If either block were wrongly recognized:
 - the HTML case would print `# a <b c=" {x y=">"}`, changing the attribute value;
-- the strikethrough case would keep `"1  2"` with two spaces.
+- the strikethrough case would keep `"1   2"` with two spaces.
 
 Suggested fix: add both to the "should not recognize a block whose brace is within a link or emphasis" test in `tests/specs/headers/Headers_Attributes.txt`.
 
