@@ -183,19 +183,57 @@ Supplied the specification version used as the basis for the PR and completed re
 
 #### Build and run test
 
-Prompt: "Verify that you can build and run the project in the current git repo."
+Prompt: "Inspect the OS, architecture, shell and installed toolchain versions
+relevant to this repository, and check its configuration and CI files to
+identify the intended build and test setup. Then build the project and run its
+tests."
 
-Summarized output from Aslan's own computer: **[Aslan must add his OS, architecture, Rust/Cargo versions, commands, and results.]**
+- Environment: Windows 11 Home Single Language 10.0.26200 (build
+  26200.9711), x64; Command Prompt (`cmd.exe`); rustc 1.98.0 and cargo
+  1.98.0, toolchain `1.98.0-x86_64-pc-windows-msvc` (pinned by
+  `rust-toolchain.toml`; rustup installed it on first use).
+- CI (`.github/workflows/ci.generated.yml`): Ubuntu with the toolchain from
+  `rust-toolchain.toml`; builds the Wasm plugin and runs `cargo test`.
+- `cargo build --locked`: finished in 33 s, exit code 0.
+- `cargo test --locked`: exit code 0; 160 unit tests, 10 CommonMark checks,
+  1 corpus check, 8 HTML parser tests, 2 nesting tests, 9 newline tests,
+  39 parser spec tests, 192 formatter spec tests and 2 doc tests passed;
+  0 failed.
 
 #### Specification review rounds
 
 | Round | Findings | Main changes made |
 | ----- | -------- | ----------------- |
-| 2–3 | 3 main | Made caret runs count as pairable; rewrote footnote handling and added wikilink, heading-attribute, and formatter-configuration cases. |
+| 2     | 8        | A hard-break rewrite could create a superscript, so `^` runs now count as pairable; rule 6 rewritten (a footnote only when no link forms, and its label is text); `written_delimiter()` uses the measured length; wikilinks added as a known difference; one formatter test file per config |
+| 3     | 7        | Rule 6 covers `![^…]` and only valid labels (`match_label`); heading attributes added as a known difference; subscript PR #1 noted as following Pandoc; Configuration lists the hard-break change; "same delimiters" instead of "exactly as written" |
+
+Both rounds reviewed the draft that came before the round 10 rewrite, so most
+of what they changed (rule 6, footnotes, Configuration) is no longer in the
+spec; counting `^` runs as pairable and measuring the delimiter in
+`written_delimiter()` are.
 
 #### Last specification review
 
-The supplied PR material does not identify Aslan's LLM, last-round prompt, or output. **[Aslan must add these details.]**
+LLM: Claude Opus 5.5 (claude.ai). Prompt (round 3, on the spec with the
+round 2 fixes applied): "Review this specification again and list your
+findings."
+
+Output, shortened (`␣` is a space, `⏎` a line break). All seven findings were
+applied; none was rejected.
+
+1. Rule 6 misses image brackets: `![^a^]` is `!` followed by footnote `a^`.
+2. Rule 6 doesn't say what a footnote name may be: `[^␣]` and `[^a [b] c^]`
+   are not footnotes; apply it only where `match_label()` matches.
+3. Heading attributes are another known difference: `# ^a {#b^}` gives
+   `<h1 id="b^">^a</h1>`.
+4. The subscript spec (PR #1) follows Pandoc, this one pulldown-cmark 0.13;
+   both teams should pick one target.
+5. Configuration misses an output change: `x ^␣␣⏎b^` now keeps its two
+   spaces.
+6. Goal contradicts formatting rule 1: say "with the same delimiters", not
+   "exactly as written".
+7. The file isn't formatted with the repo's own dprint config; run
+   `dprint fmt`.
 
 Final submission
 ----------------
