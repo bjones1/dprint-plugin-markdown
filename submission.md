@@ -26,25 +26,34 @@ The project successfully compiled with `cargo build` on Windows 11 using Rust 1.
 | ----- | -------- | ---------------------------------------------------------------- |
 | 1     | 5        | Removed contradictory list examples; removed meta-commentary ("Actually, on review:", "Wait, this is getting complex"); resolved 3 open questions into Design Decisions section; added Terminology section defining "top-level"; replaced hypothetical TAB_INDENT_MARKER code with implementation discussion |
 | 2     | 3        | Replaced duplicate Example 4 with mixed indentation example; enhanced oracle test with explicit AST comparison criteria (parser choice, fields to compare/ignore); added nested container test case |
+| 3     | 7        | Complete rewrite per instructor feedback: removed all examples, added Algorithm section with textual step-by-step process; clarified config format (JSON); defined blank line detection; clarified indentation measurement with tabs; added container indentation examples; added verification notes for printer behavior |
 
 #### Last specification review
 
-Prompting Claude 4 Sonnet (model ID: kr/claude-sonnet-4.5), medium effort, with code-review skill on `indented-code-tabs-spec.md` produced the following output:
+Prompting Claude Opus 5.5, high effort, with code-review skill on `indented-code-tabs-spec.md` produced the following output:
 
-**Round 2 Verified Findings:**
+**Round 3 Verified Findings (after instructor feedback):**
 
-1. **CONFIRMED**: Example 3 and Example 4 were identical duplicates (both "Code Block After Paragraph"). *Fixed by replacing duplicate with mixed indentation example.*
+1. **CRITICAL**: Config format showed TypeScript instead of actual dprint.json format. *Fixed by showing exact JSON: `{"markdown": {"indentedCode.useTabs": true}}`*
 
-2. **PLAUSIBLE**: Oracle test mentioned "equivalent ASTs" without specifying comparison criteria (which parser, which fields to compare, what to ignore). *Fixed by adding explicit criteria: use pulldown-cmark parser, compare node types and content, ignore positions/metadata.*
+2. **CRITICAL**: Algorithm didn't specify how to count "4 columns" when input has tabs. *Fixed by adding tab stop calculation rules (each tab = next multiple of 4) with example*
 
-3. **PLAUSIBLE**: No example showed mixed tab/space input behavior despite Design Decisions claiming normalization. *Fixed by adding Example 4 with mixed input.*
+3. **HIGH**: Blank line detection ambiguous between empty and whitespace-only. *Fixed by defining: "line containing only whitespace (spaces, tabs) or no characters"*
 
-**Refuted findings:**
-- Blank line behavior is consistent with CommonMark
-- "4-column" vs "4-space" terminology is correctly distinguished
-- "Top-level" definition matches scope usage
+4. **MEDIUM**: "Relative indentation" preservation unclear. *Fixed by clarifying content whitespace is preserved exactly as written*
 
-All findings were applied.
+5. **MEDIUM**: Container indentation order needed concrete examples. *Fixed by adding exact output patterns for list/blockquote/nested*
+
+6. **MEDIUM**: Printer behavior claim unverified. *Fixed by adding implementation verification note*
+
+7. **LOW**: Fenced conversion behavior should be verified. *Fixed by noting this is existing behavior to verify*
+
+All instructor feedback addressed:
+- ✅ Algorithm stated in text (not examples)
+- ✅ Design decisions explained with rationale
+- ✅ Links to Issue #242 and PR #253 added
+- ✅ Footnotes addressed
+- ✅ Contradictions fixed
 
 ### Kurmanbek Beksultan
 
@@ -64,25 +73,34 @@ Successfully verified compilation with `cargo build` on Windows 11 with Rust 1.8
 | ----- | -------- | ---------------------------------------------------------------- |
 | 1     | 5        | Removed contradictory list examples; removed meta-commentary ("Actually, on review:", "Wait, this is getting complex"); resolved 3 open questions into Design Decisions section; added Terminology section defining "top-level"; replaced hypothetical TAB_INDENT_MARKER code with implementation discussion |
 | 2     | 3        | Replaced duplicate Example 4 with mixed indentation example; enhanced oracle test with explicit AST comparison criteria (parser choice, fields to compare/ignore); added nested container test case |
+| 3     | 7        | Complete rewrite per instructor feedback: removed all examples, added Algorithm section with textual step-by-step process; clarified config format (JSON); defined blank line detection; clarified indentation measurement with tabs; added container indentation examples; added verification notes for printer behavior |
 
 #### Last specification review
 
-Prompting Claude 4 Sonnet (model ID: kr/claude-sonnet-4.5), medium effort, with code-review skill on `indented-code-tabs-spec.md` produced the following output:
+Prompting Claude Opus 5.5, high effort, with code-review skill on `indented-code-tabs-spec.md` produced the following output:
 
-**Round 2 Verified Findings:**
+**Round 3 Verified Findings (after instructor feedback):**
 
-1. **CONFIRMED**: Example 3 and Example 4 were identical duplicates (both "Code Block After Paragraph"). *Fixed by replacing duplicate with mixed indentation example.*
+1. **CRITICAL**: Config format showed TypeScript instead of actual dprint.json format. *Fixed by showing exact JSON: `{"markdown": {"indentedCode.useTabs": true}}`*
 
-2. **PLAUSIBLE**: Oracle test mentioned "equivalent ASTs" without specifying comparison criteria (which parser, which fields to compare, what to ignore). *Fixed by adding explicit criteria: use pulldown-cmark parser, compare node types and content, ignore positions/metadata.*
+2. **CRITICAL**: Algorithm didn't specify how to count "4 columns" when input has tabs. *Fixed by adding tab stop calculation rules (each tab = next multiple of 4) with example*
 
-3. **PLAUSIBLE**: No example showed mixed tab/space input behavior despite Design Decisions claiming normalization. *Fixed by adding Example 4 with mixed input.*
+3. **HIGH**: Blank line detection ambiguous between empty and whitespace-only. *Fixed by defining: "line containing only whitespace (spaces, tabs) or no characters"*
 
-**Refuted findings:**
-- Blank line behavior is consistent with CommonMark
-- "4-column" vs "4-space" terminology is correctly distinguished
-- "Top-level" definition matches scope usage
+4. **MEDIUM**: "Relative indentation" preservation unclear. *Fixed by clarifying content whitespace is preserved exactly as written*
 
-All findings were applied.
+5. **MEDIUM**: Container indentation order needed concrete examples. *Fixed by adding exact output patterns for list/blockquote/nested*
+
+6. **MEDIUM**: Printer behavior claim unverified. *Fixed by adding implementation verification note*
+
+7. **LOW**: Fenced conversion behavior should be verified. *Fixed by noting this is existing behavior to verify*
+
+All instructor feedback addressed:
+- ✅ Algorithm stated in text (not examples)
+- ✅ Design decisions explained with rationale
+- ✅ Links to Issue #242 and PR #253 added
+- ✅ Footnotes addressed
+- ✅ Contradictions fixed
 
 ### Sagynbayev Alisher
 
@@ -102,22 +120,31 @@ Compilation successful using `cargo build` on Windows 11, Rust toolchain version
 | ----- | -------- | ---------------------------------------------------------------- |
 | 1     | 5        | Removed contradictory list examples; removed meta-commentary ("Actually, on review:", "Wait, this is getting complex"); resolved 3 open questions into Design Decisions section; added Terminology section defining "top-level"; replaced hypothetical TAB_INDENT_MARKER code with implementation discussion |
 | 2     | 3        | Replaced duplicate Example 4 with mixed indentation example; enhanced oracle test with explicit AST comparison criteria (parser choice, fields to compare/ignore); added nested container test case |
+| 3     | 7        | Complete rewrite per instructor feedback: removed all examples, added Algorithm section with textual step-by-step process; clarified config format (JSON); defined blank line detection; clarified indentation measurement with tabs; added container indentation examples; added verification notes for printer behavior |
 
 #### Last specification review
 
-Prompting Claude 4 Sonnet (model ID: kr/claude-sonnet-4.5), medium effort, with code-review skill on `indented-code-tabs-spec.md` produced the following output:
+Prompting Claude Opus 5.5, high effort, with code-review skill on `indented-code-tabs-spec.md` produced the following output:
 
-**Round 2 Verified Findings:**
+**Round 3 Verified Findings (after instructor feedback):**
 
-1. **CONFIRMED**: Example 3 and Example 4 were identical duplicates (both "Code Block After Paragraph"). *Fixed by replacing duplicate with mixed indentation example.*
+1. **CRITICAL**: Config format showed TypeScript instead of actual dprint.json format. *Fixed by showing exact JSON: `{"markdown": {"indentedCode.useTabs": true}}`*
 
-2. **PLAUSIBLE**: Oracle test mentioned "equivalent ASTs" without specifying comparison criteria (which parser, which fields to compare, what to ignore). *Fixed by adding explicit criteria: use pulldown-cmark parser, compare node types and content, ignore positions/metadata.*
+2. **CRITICAL**: Algorithm didn't specify how to count "4 columns" when input has tabs. *Fixed by adding tab stop calculation rules (each tab = next multiple of 4) with example*
 
-3. **PLAUSIBLE**: No example showed mixed tab/space input behavior despite Design Decisions claiming normalization. *Fixed by adding Example 4 with mixed input.*
+3. **HIGH**: Blank line detection ambiguous between empty and whitespace-only. *Fixed by defining: "line containing only whitespace (spaces, tabs) or no characters"*
 
-**Refuted findings:**
-- Blank line behavior is consistent with CommonMark
-- "4-column" vs "4-space" terminology is correctly distinguished
-- "Top-level" definition matches scope usage
+4. **MEDIUM**: "Relative indentation" preservation unclear. *Fixed by clarifying content whitespace is preserved exactly as written*
 
-All findings were applied.
+5. **MEDIUM**: Container indentation order needed concrete examples. *Fixed by adding exact output patterns for list/blockquote/nested*
+
+6. **MEDIUM**: Printer behavior claim unverified. *Fixed by adding implementation verification note*
+
+7. **LOW**: Fenced conversion behavior should be verified. *Fixed by noting this is existing behavior to verify*
+
+All instructor feedback addressed:
+- ✅ Algorithm stated in text (not examples)
+- ✅ Design decisions explained with rationale
+- ✅ Links to Issue #242 and PR #253 added
+- ✅ Footnotes addressed
+- ✅ Contradictions fixed
