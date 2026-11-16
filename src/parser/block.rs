@@ -122,14 +122,14 @@ impl<'a, 'c> BlockParser<'a, 'c> {
     };
 
     let content = [content];
-    let children = self.parse_inlines(&content);
+    let (children, attributes) = self.parse_heading_content(&content);
     nodes.push(
       Heading {
         span: Span::new(line.start, lines[index].trim_end().end()),
         level,
         style: HeadingStyle::Atx,
         children,
-        attributes: self.heading_attributes(&content, children),
+        attributes,
       }
       .into(),
     );
@@ -138,24 +138,44 @@ impl<'a, 'c> BlockParser<'a, 'c> {
 
   /// The attribute block the heading with the given content ends with, if it
   /// ends with one, along with its text read without it.
-  fn heading_attributes(&self, content: &[ContentLine<'a>], children: &'a [Node<'a>]) -> Option<HeadingAttributes<'a>> {
+  fn parse_heading_content(&self, content: &[ContentLine<'a>]) -> (&'a [Node<'a>], Option<HeadingAttributes<'a>>) {
+    if let Some(result) = self.heading_attributes(content) {
+      result
+    } else {
+      (self.parse_inlines(content), None)
+    }
+  }
+
+  fn heading_attributes(&self, content: &[ContentLine<'a>]) -> Option<(&'a [Node<'a>], Option<HeadingAttributes<'a>>)> {
     let (last, before) = content.split_last()?;
     let last = last.trim_end();
-    let start = heading_attributes::attribute_block_start(last.text, last.start, children)?;
+    let start = heading_attributes::attribute_block_start(last.text)?;
+    let position = last.start + start;
+    let children = super::inline::parse_inlines_before_attributes(content, self.context, Some(position))?;
+    if !self.context.collect_only
+      && !children
+        .iter()
+        .any(|child| matches!(child, Node::Text(_)) && child.span().start <= position && position < child.span().end)
+    {
+      return None;
+    }
 
-    // the text is read again without the block, which only differs from how
-    // it was read with it where the block took part in something the text
-    // started -- and then the block's `{` wouldn't have been plain text
+    // Parse the heading text without allowing the candidate's delimiters to
+    // participate. The provisional parse above checks constructs such as code
+    // spans that start before the candidate and consume its opening brace.
     let mut text_line = last;
     text_line.text = last.text[..start].trim_end_matches(' ');
     let mut text_lines = BumpVec::from_iter_in(before.iter().copied(), self.context.bump);
     text_lines.push(text_line);
 
-    Some(HeadingAttributes {
-      span: Span::new(last.start + start, last.end()),
-      text: &last.text[start..],
-      children: self.parse_inlines(&text_lines),
-    })
+    Some((
+      children,
+      Some(HeadingAttributes {
+        span: Span::new(last.start + start, last.end()),
+        text: &last.text[start..],
+        children: self.parse_inlines(&text_lines),
+      }),
+    ))
   }
 
   fn parse_fenced_code(&self, lines: &[ContentLine<'a>], index: usize, nodes: &mut BumpVec<'a, Node<'a>>) -> usize {
@@ -542,14 +562,14 @@ impl<'a, 'c> BlockParser<'a, 'c> {
       if line.indent_columns() < CODE_INDENT && !line.is_lazy {
         if let Some(level) = setext_heading_level(rest) {
           let content = &lines[content_start..end];
-          let children = self.parse_inlines(content);
+          let (children, attributes) = self.parse_heading_content(content);
           nodes.push(
             Heading {
               span: Span::new(content[0].rest_start(), line.trim_end().end()),
               level,
               style: HeadingStyle::Setext,
               children,
-              attributes: self.heading_attributes(content, children),
+              attributes,
             }
             .into(),
           );

@@ -142,6 +142,15 @@ fn gen_checked_decorations<'a>(nodes: &[Node<'a>], items: PrintItems<'a>, contex
 /// Whether the decorations read out of the text the items print as are the
 /// ones the nodes hold.
 fn reads_back_decorations<'a>(nodes: &[Node], items: PrintItems<'a>, context: &Context<'a>) -> bool {
+  reads_back_decorations_with_attributes(nodes, items, context, false)
+}
+
+fn reads_back_decorations_with_attributes<'a>(
+  nodes: &[Node],
+  items: PrintItems<'a>,
+  context: &Context<'a>,
+  heading: bool,
+) -> bool {
   let line_width = context
     .configuration
     .line_width
@@ -156,11 +165,12 @@ fn reads_back_decorations<'a>(nodes: &[Node], items: PrintItems<'a>, context: &C
       new_line_text: "\n",
     },
   );
-  let read = crate::parser::parse_inline_content(
+  let read = crate::parser::parse_inline_content_with_attributes(
     &text,
     context.arena.bump(),
     context.link_labels(),
     context.footnote_labels(),
+    heading,
   );
   written_decorations(read) == written_decorations(nodes)
 }
@@ -793,7 +803,7 @@ fn gen_heading_content<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> 
   // the same as `gen_checked_decorations`, but with the text written apart
   // from the block rather than as the nodes the block was read within
   let (items, rendered) = clone_items(items);
-  if reads_back_decorations(heading.children, rendered, context) {
+  if reads_back_decorations_with_attributes(heading.children, rendered, context, true) {
     return items;
   }
   let preserved = context.with_preserved_decorations(|context| {
@@ -803,7 +813,7 @@ fn gen_heading_content<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> 
     })
   });
   let (preserved, rendered) = clone_items(preserved);
-  if reads_back_decorations(heading.children, rendered, context) {
+  if reads_back_decorations_with_attributes(heading.children, rendered, context, true) {
     return preserved;
   }
   let (Some(first), Some(last)) = (heading.children.first(), heading.children.last()) else {
@@ -860,7 +870,7 @@ fn gen_text_and_attribute_block<'a>(
   // a plain space rather than a signal, so the printer can't break the line
   // there and moves the end of the text to the next line along with the block
   items.push_space();
-  items.extend(gen_attribute_block(attributes, heading.children, context));
+  items.extend(gen_attribute_block(attributes, context));
   items
 }
 
@@ -868,13 +878,17 @@ fn gen_text_and_attribute_block<'a>(
 /// values written as one space, except where the run is within something the
 /// block holds that starts within it (ex. a code span), whose spaces are left
 /// as they are the same as they are where it is text.
-fn gen_attribute_block<'a>(
-  attributes: &HeadingAttributes<'a>,
-  children: &[Node],
-  context: &Context<'a>,
-) -> PrintItems<'a> {
+fn gen_attribute_block<'a>(attributes: &HeadingAttributes<'a>, context: &Context<'a>) -> PrintItems<'a> {
   let mut items = PrintItems::new(context.arena);
   let text = attributes.text;
+  // Preserve the existing spacing policy inside Markdown-shaped attribute
+  // values independently of heading recognition and delimiter matching.
+  let children = crate::parser::parse_inline_content(
+    text,
+    context.arena.bump(),
+    context.link_labels(),
+    context.footnote_labels(),
+  );
   let is_within_element = |position: usize| {
     children
       .iter()
@@ -885,7 +899,7 @@ fn gen_attribute_block<'a>(
       items.extend(ir_helpers::gen_from_raw_string(context.arena, &text[start..end]))
     }
     AttributeBlockPiece::Spaces(start, end) => {
-      if is_within_element(attributes.span.start + start) {
+      if is_within_element(start) {
         items.extend(ir_helpers::gen_from_raw_string(context.arena, &text[start..end]));
       } else {
         items.push_space();

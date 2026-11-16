@@ -65,8 +65,19 @@ struct InlineScratch<'a> {
 }
 
 pub fn parse_inlines<'a>(lines: &[ContentLine<'a>], context: &InlineContext<'a>) -> &'a [Node<'a>] {
+  parse_inlines_before_attributes(lines, context, None).unwrap()
+}
+
+/// A candidate suffix is opaque. Constructs starting before it may still
+/// consume its opening brace (for example a code span), allowing the caller
+/// to reject that candidate and retry ordinary parsing.
+pub fn parse_inlines_before_attributes<'a>(
+  lines: &[ContentLine<'a>],
+  context: &InlineContext<'a>,
+  attribute_start: Option<usize>,
+) -> Option<&'a [Node<'a>]> {
   if context.collect_only || lines.is_empty() {
-    return &[];
+    return Some(&[]);
   }
   let text = InlineText::new(lines, context.source, context.bump);
   // inline parsing never begins again while it's underway, so the buffers on
@@ -83,11 +94,17 @@ pub fn parse_inlines<'a>(lines: &[ContentLine<'a>], context: &InlineContext<'a>)
     context,
     pos: 0,
     pending_text_start: 0,
+    attribute_start,
+    attribute_boundary_blocked: false,
     nodes: &mut scratch.nodes,
     delimiters: &mut scratch.delimiters,
   };
   parser.parse();
-  parser.finish()
+  if parser.attribute_boundary_blocked {
+    None
+  } else {
+    Some(parser.finish())
+  }
 }
 
 // ==== the flat view of a block's content ====
@@ -283,6 +300,8 @@ struct InlineParser<'a, 'b> {
   text: &'b InlineText<'a>,
   context: &'b InlineContext<'a>,
   pos: usize,
+  attribute_start: Option<usize>,
+  attribute_boundary_blocked: bool,
   /// Where the text that hasn't been turned into a node yet begins.
   pending_text_start: usize,
   /// The nodes parsed so far. Emphasis leaves holes behind when it wraps the
@@ -325,6 +344,22 @@ enum DelimiterKind {
 impl<'a, 'b> InlineParser<'a, 'b> {
   fn parse(&mut self) {
     while let Some(byte) = self.text.byte(self.pos) {
+      if self
+        .attribute_start
+        .is_some_and(|start| self.text.abs(self.pos) >= start)
+      {
+        // A link label opened before the candidate owns its brace. Do not
+        // inspect the candidate for a closing bracket or parse its contents.
+        if self
+          .delimiters
+          .iter()
+          .any(|delimiter| delimiter.active && matches!(delimiter.kind, DelimiterKind::Link | DelimiterKind::Image))
+        {
+          self.attribute_boundary_blocked = true;
+        }
+        self.pos = self.text.len();
+        break;
+      }
       match byte {
         b'\\' => self.parse_backslash(),
         b'`' => self.parse_code_span(),

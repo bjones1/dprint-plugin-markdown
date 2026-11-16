@@ -94,7 +94,7 @@ pub struct Heading<'a> {
   pub children: &'a [Node<'a>],
   /// The attribute block the heading ends with (ex. the `{#id}` of
   /// `# Title {#id}`), if it ends with one. `children` still holds everything
-  /// the heading's content was read as, the block included.
+  /// the heading's content was read as, with an accepted block kept as opaque text.
   pub attributes: Option<HeadingAttributes<'a>>,
 }
 

@@ -2,7 +2,7 @@
 //! `# Title {#id .class}`), as `heading-attributes-spec.md` describes it.
 //!
 //! CommonMark has no such thing, so the block is only ever looked for here,
-//! after the heading's content has been read the way CommonMark reads it. The
+//! before the heading's content is read as inline Markdown. The
 //! syntax of what goes between the braces is based on Python-Markdown's
 //! `attr_list`:
 //!
@@ -16,17 +16,16 @@
 //! of them that doesn't start with `#`, `.` or `:`, and a quoted value runs to
 //! the next quote of its kind.
 
+#[cfg(test)]
 use super::ast::*;
 
 /// Where the attribute block that ends a heading's last line of content starts
 /// within that line, when it ends with one.
 ///
 /// `line` is the heading's last line of content with its trailing whitespace
-/// removed, and `line_start` is where it starts in the file. `children` are the
-/// inline nodes the whole of the heading's content was read as, which decide
-/// whether the block's `{` is plain text or part of something that starts
-/// before it.
-pub fn attribute_block_start(line: &str, line_start: usize, children: &[Node]) -> Option<usize> {
+/// removed. This checks only raw syntax; the caller checks whether an inline
+/// construct starting earlier consumes the opening brace.
+pub fn attribute_block_start(line: &str) -> Option<usize> {
   if !line.ends_with('}') {
     return None;
   }
@@ -48,14 +47,7 @@ pub fn attribute_block_start(line: &str, line_start: usize, children: &[Node]) -
     return None;
   }
 
-  // the `{` has to be text of the heading itself rather than part of a code
-  // span, a link, a decoration or html that starts before it
-  let position = line_start + start;
-  let is_plain_text = children
-    .iter()
-    .find(|child| child.span().start <= position && position < child.span().end)
-    .is_some_and(|child| matches!(child, Node::Text(_)));
-  is_plain_text.then_some(start)
+  Some(start)
 }
 
 /// The length of the block at the start of `text`, through its closing `}`,
@@ -281,7 +273,6 @@ mod test {
       "# Title {#id} {bad",
       "# Title `{#id` }",
       "# Title [a {b](u) c}",
-      "# *a {*}",
       "# Title \\{#id}",
       "Title\n{#id}\n===",
       "Title {#id\n.c}\n===",
@@ -290,6 +281,32 @@ mod test {
       "# Title\u{3000}{#id}",
     ] {
       assert_eq!(heading_attributes(markdown), None, "{markdown:?}");
+    }
+  }
+
+  #[test]
+  fn attribute_markdown_does_not_create_heading_inlines() {
+    for markdown in [
+      "# foo {bar=\"test **neat** stuff\"}",
+      "foo {bar=\"test **neat** stuff\"}\n===",
+      "# *foo {title=\"bar*\"}",
+      "*foo {title=\"bar*\"}\n---",
+    ] {
+      let bump = dprint_core::formatting::bumpalo::Bump::new();
+      let file = crate::parser::parse(markdown, &bump).unwrap();
+      let Node::Heading(heading) = &file.children[0] else {
+        panic!("expected heading")
+      };
+      let attributes = heading.attributes.as_ref().expect("expected attributes");
+      assert!(
+        heading.children.iter().all(|node| matches!(node, Node::Text(_))),
+        "{markdown}"
+      );
+      assert!(
+        attributes.children.iter().all(|node| matches!(node, Node::Text(_))),
+        "{markdown}"
+      );
+      assert_eq!(attributes.span.text(markdown), attributes.text);
     }
   }
 

@@ -107,8 +107,27 @@ pub fn parse_inline_content<'a>(
   link_labels: Labels<'a>,
   footnote_labels: Labels<'a>,
 ) -> &'a [Node<'a>] {
+  parse_inline_content_with_attributes(text, bump, link_labels, footnote_labels, false)
+}
+
+pub fn parse_inline_content_with_attributes<'a>(
+  text: &'a str,
+  bump: &'a Bump,
+  link_labels: Labels<'a>,
+  footnote_labels: Labels<'a>,
+  heading: bool,
+) -> &'a [Node<'a>] {
   let lines = source_lines(text, bump);
   let context = InlineContext::new(text, bump, link_labels, footnote_labels, false);
+  if heading {
+    if let Some(last) = lines.last() {
+      if let Some(start) = heading_attributes::attribute_block_start(last.trim_end().text) {
+        if let Some(nodes) = inline::parse_inlines_before_attributes(lines, &context, Some(last.start + start)) {
+          return nodes;
+        }
+      }
+    }
+  }
   parse_inlines(lines, &context)
 }
 
