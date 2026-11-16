@@ -110,3 +110,25 @@ a*b*~c~
 
 [expect]
 ~a ~~b~
+
+!! should keep a strikethrough holding a lone tilde !!
+~~a~b~~
+
+[expect]
+~~a~b~~
+
+!! should keep a hard break that a backslash would turn into a subscript !!
+~  
+a~b
+
+[expect]
+~  
+a~b
+
+!! should keep a hard break that a backslash would move a subscript across !!
+~  
+a~a~
+
+[expect]
+~  
+a~a~

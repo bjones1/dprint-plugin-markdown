@@ -163,7 +163,67 @@ fn reads_back_decorations<'a>(nodes: &[Node], items: PrintItems<'a>, context: &C
     context.footnote_labels(),
     context.configuration.subscript,
   );
+  if context.configuration.subscript {
+    // a lone `~` is a delimiter with the option on, so formatting can hand a
+    // decoration content that reads the same while sitting somewhere else
+    // (`~`+hard break+`a~a~` writes the break as `\`, which reads as a
+    // subscript over the first `a` instead of the second). Comparing the
+    // content of each decoration on its own can't see that, so the whole
+    // block is compared with the decorations marked where they sit
+    return written_shape(read) == written_shape(nodes);
+  }
   written_decorations(read) == written_decorations(nodes)
+}
+
+/// The text the nodes hold with each decoration marked where it sits, so that
+/// a decoration which moves to other text that reads the same is still a
+/// decoration that moved. A decoration is marked with U+0001, the letter of
+/// its kind and U+0002; text holding those characters itself is written with
+/// each of them after a U+0001, which no mark of a kind begins with, so that
+/// no text encodes as a decoration does.
+fn written_shape(nodes: &[Node]) -> String {
+  let mut shape = String::new();
+  push_written_shape(nodes, &mut shape);
+  shape
+}
+
+/// Pushes the text, leaving out what formatting may change about it and
+/// writing the two marks of a decoration after a U+0001 of their own.
+fn push_shape_text(text: &str, escapes: bool, shape: &mut String) {
+  for c in text.chars() {
+    match c {
+      '\u{1}' | '\u{2}' => {
+        shape.push('\u{1}');
+        shape.push(c);
+      }
+      '\\' if escapes => {}
+      c if c.is_whitespace() => {}
+      c => shape.push(c),
+    }
+  }
+}
+
+fn push_written_shape(nodes: &[Node], shape: &mut String) {
+  for node in nodes {
+    match node {
+      Node::Text(text) => push_shape_text(text.text, true, shape),
+      Node::Code(code) => push_shape_text(code.code, false, shape),
+      Node::TextDecoration(decoration) => {
+        shape.push('\u{1}');
+        shape.push(match decoration.kind {
+          TextDecorationKind::Emphasis => 'e',
+          TextDecorationKind::Strong => 's',
+          TextDecorationKind::Strikethrough => 'd',
+          TextDecorationKind::Subscript => 'b',
+        });
+        push_written_shape(decoration.children, shape);
+        shape.push('\u{2}');
+        continue;
+      }
+      _ => {}
+    }
+    push_written_shape(node.children(), shape);
+  }
 }
 
 /// The decorations within the nodes in the order they are written, each as its
@@ -218,7 +278,7 @@ fn push_delimiter_runs(nodes: &[Node], context: &Context, runs: &mut DelimiterRu
     match node {
       Node::TextDecoration(decoration) => runs.decorations.push(decoration.span),
       Node::Text(text) => {
-        push_pairable_runs(text.span, context.file_text, &mut runs.pairable);
+        push_pairable_runs(text.span, context.file_text, context.configuration.subscript, &mut runs.pairable);
         push_backtick_runs(text.text, &mut runs.backticks);
       }
       _ => {}
@@ -232,9 +292,10 @@ fn push_delimiter_runs(nodes: &[Node], context: &Context, runs: &mut DelimiterRu
 
 /// Pushes each run of `*` or `_` within the text at `span` that can open or
 /// close emphasis where it sits, which is decided by the characters of the
-/// file on either side of the run.
-fn push_pairable_runs(span: Span, file_text: &str, pairable: &mut Vec<(Span, char)>) {
-  for (start, end, c) in unescaped_delimiter_runs(span.text(file_text)) {
+/// file on either side of the run. With `subscript` on, a run of `~` can pair
+/// the same way, so those runs are gathered too.
+fn push_pairable_runs(span: Span, file_text: &str, subscript: bool, pairable: &mut Vec<(Span, char)>) {
+  for (start, end, c) in unescaped_delimiter_runs(span.text(file_text), subscript) {
     let (start, end) = (span.start + start, span.start + end);
     let surroundings = Surroundings {
       before: file_text[..start].chars().next_back(),
@@ -1916,7 +1977,9 @@ fn text_can_pair(nodes: &[Node], delimiter: char) -> bool {
 /// Whether the text holds a run of the character that could open or close
 /// emphasis, and so pair with a delimiter of that character around it.
 fn can_pair_with_delimiter(text: &str, delimiter: char) -> bool {
-  unescaped_delimiter_runs(text)
+  // the runs that matter here are of the delimiter the decoration is written
+  // with, which is never `~`, so the tildes are left ungathered
+  unescaped_delimiter_runs(text, false)
     .filter(|(_, _, c)| *c == delimiter)
     .any(|(start, end, _)| {
       // what sits outside the text is the delimiter this could pair with, or
@@ -1932,8 +1995,11 @@ fn can_pair_with_delimiter(text: &str, delimiter: char) -> bool {
 }
 
 /// Each run of `*` or `_` within the text that a backslash doesn't escape, as
-/// where it starts and ends and the character it's made of.
-fn unescaped_delimiter_runs(text: &str) -> impl Iterator<Item = (usize, usize, char)> + '_ {
+/// where it starts and ends and the character it's made of. With `subscript`
+/// on, a lone `~` is a delimiter of its own, so runs of `~` are read too:
+/// formatting can otherwise write a `\` or drop a line break beside a `~`
+/// that was text and make it pair into a subscript the file never held.
+fn unescaped_delimiter_runs(text: &str, subscript: bool) -> impl Iterator<Item = (usize, usize, char)> + '_ {
   let mut chars = text.char_indices().peekable();
   let mut is_escaped = false;
   std::iter::from_fn(move || {
@@ -1946,7 +2012,7 @@ fn unescaped_delimiter_runs(text: &str) -> impl Iterator<Item = (usize, usize, c
         is_escaped = true;
         continue;
       }
-      if c != '*' && c != '_' {
+      if c != '*' && c != '_' && !(subscript && c == '~') {
         continue;
       }
       let mut end = start + 1;

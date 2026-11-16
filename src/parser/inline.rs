@@ -845,6 +845,12 @@ impl<'a, 'b> InlineParser<'a, 'b> {
             continue;
           }
           let opener_len = opener.original_len;
+          // a `~~` closer reaches back past a single `~` opener, which can't
+          // pair with it, so a strikethrough still holds a lone tilde
+          // (`~~a~b~~`) with the option on
+          if byte == b'~' && self.context.subscript && opener_len < closer_len {
+            continue;
+          }
           // the "rule of three": when a delimiter is both an opener and a
           // closer, the sum of the run lengths can't be a multiple of three
           // unless both are. Subscript tildes pair only with a run of their
@@ -1103,6 +1109,10 @@ mod test {
     assert_eq!(decoration_kinds("a ~ b ~ c", true), []);
     assert_eq!(decoration_kinds("x~y~~z", true), []);
     assert_eq!(decoration_kinds("~a~~b~", true), []);
+    // a `~~` pair reaches past a lone tilde in its content either way
+    assert_eq!(decoration_kinds("~~a~b~~", true), [Strikethrough]);
+    assert_eq!(decoration_kinds("~~a~b~~", false), [Strikethrough]);
+    assert_eq!(decoration_kinds("a~~b~c~~d", true), [Strikethrough]);
   }
 
   #[test]

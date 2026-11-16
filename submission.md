@@ -449,7 +449,157 @@ No source, fixture, configuration, Git, or PR changes were made. This is the com
 
 GitHub userid: amir-kbtu-pge
 
-(Amir's final contributions, review tables and last reviews)
+#### Contributions
+
+Reviewed the specification and the implementation of the `subscript` option
+with an LLM, eight rounds of the first and four of the second, and fixed what
+they found: three bugs in the feature as implemented, the specification claims
+that didn't match the code, and the tests that didn't pin either.
+
+The three bugs, all with the option on and all reproduced before and after the
+fix:
+
+1. Formatting *created* a subscript out of plain text. Writing a double-space
+   hard break as `\` puts the backslash against a lone `~`, which then pairs
+   with a `~` in a later word: `~`␣␣⏎`a~b` was written `~\`⏎`a~b`, which reads
+   as a subscript. Fixed by gathering runs of `~` as runs that can pair when
+   the formatter decides whether to read back what it wrote
+   (`unescaped_delimiter_runs`, gated on the option).
+2. Formatting *moved* a subscript onto other content. Dropping a line break
+   between two characters of an unspaced script joined a lone `~` to the
+   subscript after it (`~日`⏎`~本~` → `~日~本~`, the subscript moving from 本
+   to 日); and where the two pieces of content read the same, the re-parse
+   check couldn't tell (`~`␣␣⏎`a~a~`), because it compared each decoration's
+   kind and content but not its place. Fixed by comparing the whole block with
+   each decoration marked where it sits, with the option on.
+3. `~~a~b~~` stopped being a strikethrough. Dropping the "rule of three" for
+   `~` also removed the only thing that let a `~~` closer look past a lone `~`
+   in its own content, so nothing paired. Fixed by letting a `~~` closer reach
+   back past an opener shorter than itself, which leaves `~a~~b~` as text.
+
+Tests: a parser assertion for bug 3, four spec cases for bugs 1 and 2, a new
+`TextDecoration_Subscript_Unspaced.txt`, and
+`keeps_subscripts_through_formatting` strengthened to compare where each
+decoration sits rather than only its kind and content, to treat a format error
+as a problem, and to generate hard breaks, unspaced scripts and forged shape
+marks. Each fix was mutated away to check which test catches it; the fuzz test
+alone did not catch bug 2, which is why those cases are spec cases.
+
+The specification was corrected to match the code throughout: the
+pulldown-cmark comparison (four divergences, measured by building that parser
+at the pinned commit), the reference-link exception to how a strikethrough is
+written, what the re-parse check actually compares, which of its own test rows
+are regression rows rather than evidence of the feature, that turning the
+option on also changes the output of text holding no `~`, and a Known
+limitations section for a corruption left unfixed.
+
+Option-off output is unchanged, byte for byte: every fix is gated on the
+option, and the last implementation review confirmed it over 1,631,680 formats
+against the commit this work started from.
+
+#### Specification review rounds
+
+LLM: Claude Opus 5 (1M-context variant, `claude-opus-5[1m]`), default effort, a
+fresh session each round, each allowed to run `cargo test` and write probe
+programs outside the repository but not to edit it.
+
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| 1     | 4        | `~~` pairing silently broken with the option on; the pulldown-cmark fidelity claim; "writes every strikethrough with `~~`" false for reference links; test coverage overstated |
+| 2     | 7        | round 1's flanking claim corrected (struck); "closer gives up when the length differs" contradicted the new rule; the fallback chain documented; nine rows marked as regression rows; an inert parameter dropped from the fix |
+| 3     | 4        | the unspaced row's configuration named; `~~a~b~~` added as a third pulldown-cmark divergence; "parses to the same tree" replaced by the invariant the code keeps; `TextDecorationKind` lives in `ast.rs` |
+| 4     | 0        | no significant issues |
+| 5     | 3        | the fuzz oracle described as kind+content after it became position-aware; "the generator never reaches this" false for one of four cases; the four cases mis-grouped between the two rules |
+| 6     | 3        | a stale example; that turning the option on changes tilde-free output too; `~日本`⏎`~日本~` needs both rules, not rule 2 alone |
+| 7     | 2        | one struck (see below); the generator does reach the unspaced shape, but never one that exercises either fix |
+| 8     | 0        | no significant issues |
+
+Findings were counted from each review's numbered items. Round 2 is where the
+process paid for itself twice over: it corrected a claim round 1 had
+introduced, which I had already written into the specification.
+
+#### Last specification review
+
+Prompting Claude Opus 5 (`claude-opus-5[1m]`), default effort, in a fresh
+session with `Review the section named "Subscript support" in
+src/parser/subscript-spec.md against the code that implements it. Do not edit
+any files; return the review as your final message.` — plus the round's
+context, the instruction to verify comparative claims by building
+pulldown-cmark at rev `1c1a312` rather than reading its prose, and to report
+only what would mislead an implementer — produced the following output.
+Nothing is struck: the review reports no findings.
+
+> **The spec has no significant issues.** Every claim I checked matches the code in the working tree, including all three passages that changed since round 7.
+>
+> **Formatter rule 2's clause about unmarked nodes.** Of the inline kinds, breaks are whitespace, links contribute through their children, and exactly inline `Html`, `InlineMath`/`DisplayMath`, the three image kinds and `FootnoteReference` contribute nothing — the list in the spec. The safety argument is also the right one: a decoration can only end up on the other side of such a node if the nodes were reordered, which the inline writer does not do. I also fuzzed 600k generated texts with pieces added for images, inline HTML, `$x$`, `[^1]`, code spans and link syntax, looking for texts where the option on fails and off does not; none were found.
+>
+> **Known limitations.** Option on: the output re-parses as a paragraph plus a *list* with a different, smaller subscript, and formatting again writes `- **a本~a~本` — unstable, as stated. Option off: the input holds no decoration at all, the `*` is escaped and the output is stable. The doubled-tilde analogue breaks identically with the option off, confirming the bug predates subscript.
+>
+> **The Configuration paragraph's tilde-free example.** Option on: the two-space break is kept. Option off: it is written `\`. The input holds emphasis over the *second* `a`, the `\` rendering over the hard break plus the *first* `a` — so writing the `\` does move the emphasis, exactly as claimed. The parenthetical is also correct.
+>
+> **pulldown-cmark**, built at `1c1a312`: `~a ~~b~` → `<sub>a ~~b</sub>`; `~a~~ b~` → text; `~~a~b~~` → text under both flag sets; `~.~a~a` → `<sub>.</sub>a~a`. Agreement cases all match.
+>
+> **"Of the four cases of formatter rules 2 and 3…"**, checked by reverting each fix: with rule 3 reverted, three break and `~`␣␣⏎`a~a~` is untouched. With rule 2 reverted, only `~`␣␣⏎`a~a~` and `~日本`⏎`~日本~` break. Exactly the dependency the spec states.
+>
+> **Table classification.** All nine inputs the spec calls regression rows plus the reference-link row produce byte-identical output with the option off; all other "on" rows differ.
+>
+> `cargo test` passes in full (196 spec tests, lib tests, doc tests).
+
+The review above is shortened from the full output; the omitted part lists the
+claims verified by reading code, rule by rule.
+
+The one finding I struck in this project came in round 7, which claimed the
+Configuration section's tilde-free example "formats identically either way":
+
+> ~~`*`␣␣⏎`a*a*` is not a paragraph with a hard break: a `*` followed by spaces at the start of a block is an empty bullet marker … There is no hard break to write as `\` and nothing for the whole-block comparison to reject.~~
+
+The example in the specification begins with a backtick, and the reviewer
+tested it without one. Running the example as written gives the backslash
+rendering with the option off and the two-space break kept with it on, which is
+what the sentence claims. I kept the claim and took the reviewer's clearer
+example anyway, since an example a careful reader misreads is still a bad
+example.
+
+#### Implementation review rounds
+
+LLM: Claude Opus 5 (`claude-opus-5[1m]`), default effort, a fresh session each
+round, each allowed to run `cargo test`, build earlier commits in a worktree
+and write probe programs outside the repository, but not to edit it.
+
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| 1     | 5        | the two formatter bugs found and fixed; `~~a~b~~` losing its strikethrough; `Range_Subscript_On.txt` shown to be inert (all three mutants pass); the fuzz oracle too weak to see a moved decoration |
+| 2     | 5        | the relocation case the first fix missed, and the position-aware comparison for it; the fuzz test shown to catch only one of the three bugs; the same bug class noted as live with the option off; a parameter of mine shown inert |
+| 3     | 4        | no bugs; the shape marks made escape-safe; the guard shown to be pinned by two spec rows only, so the generator was widened to reach it; a stale comment and a misleading oracle name; the limitation's instability |
+| 4     | 0        | no bugs; the escaping pinned by forged marks in the generated text; the unmarked-node blind spot documented; the limitation corrected to say the option on is what breaks that text |
+
+#### Last implementation review
+
+Prompting Claude Opus 5 (`claude-opus-5[1m]`), default effort, in a fresh
+session with `Review the implementation in the current uncommitted working
+tree — git diff plus the untracked file
+tests/specs/TextDecoration/TextDecoration_Subscript_Unspaced.txt — against the
+"Subscript support" section of src/parser/subscript-spec.md. Do not edit any
+files; return the review as your final message.` — plus what changed since the
+previous round, and the instruction to verify by running rather than reading —
+produced the following output; strikethrough marks what I judged incorrect or
+irrelevant.
+
+> **I found no bugs.** Everything below is either a soundness note, a test-coverage gap, or a documentation check; none of it changes the output of the formatter for any input I could construct or generate.
+>
+> 1. **The U+0001/U+0002 escaping is sound, but nothing pins it.** The encoding is injective: after a mark, the next character is either a kind letter — a decoration opens — or an escaped mark — a literal. Mutating the escape arm away leaves every test in the suite passing, and a fuzz over 12,000 texts × 60 configs whose alphabet is built from forged marks produced identical results with and without it. Fix: add a piece holding a forged mark to `PIECES`, and escape the same characters in the test oracle, which currently does not.
+> 2. **`written_shape` still cannot see a decoration crossing a node whose text it drops.** `Node::Html`, math, images and `FootnoteReference` contribute nothing, and link nodes contribute their children with no boundary mark, so `~<b>a~` and `<b>~a~` share a shape. Not reachable through the writer, which never reorders nodes; 6,000 texts × 60 configs against a stronger oracle found no decoration-relevant collision.
+> 3. **Nothing else depends on the old behaviour.** Option-off output is byte-identical to HEAD: 160 configurations × 10,198 inputs = 1,631,680 formats, two 82 MB dumps, `cmp`-equal.
+> 4. **No input found where `subscript: true` loses, creates, moves or re-kinds a decoration, is unstable, or panics** — roughly 2.5M on/off format pairs across eleven sweeps — except the one the spec lists as a Known limitation. For that identical text the option-off output is clean and stable; you have to rewrite the decoration as `~~` to see it break with the option off.
+> 5. **The new Configuration claim holds.** Over 463,020 tilde-free (input, configuration) pairs: 114 differences, **114 improvements, 0 regressions**. ~~The spec example was wrong when I started this review~~ — the working tree now reads the `x *` example with a parenthetical, which I verified reproduces.
+> 6. **Which test pins which fix**, by mutation: the parser fix is caught by `reads_single_tildes_as_subscript_only_with_the_option` only — the `~~a~b~~` spec row does not catch it, because with the rule gone the input is text and is written back unchanged. Of the fuzz pieces, removing the hard-break piece stops the test catching either formatter fix; the others are individually redundant.
+
+The review above is shortened from the full output, which also tabulates the
+eleven fuzz sweeps and their sample counts. Items 1, 4 and 5's wording were
+applied. Item 2 was documented rather than fixed: marking those nodes would
+make the comparison stricter and send blocks to the fallback for a collision
+nobody can reach. The struck clause in item 5 describes an example that had
+already been replaced before the review ran.
 
 ### Dias Lesbay
 
