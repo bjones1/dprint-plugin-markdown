@@ -130,6 +130,7 @@ pub enum TextDecorationKind {
   Emphasis,
   Strong,
   Strikethrough,
+  Superscript,
 }
 
 /// A raw html block or inline html tag.

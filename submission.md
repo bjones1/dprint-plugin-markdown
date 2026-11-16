@@ -200,4 +200,145 @@ The supplied PR material does not identify Aslan's LLM, last-round prompt, or ou
 Final submission
 ----------------
 
-(To be filled in for the final submission.)
+### Dias Jakupov
+
+GitHub userid: diasjakupovkbtu
+
+#### Contributions
+
+*
+To be added
+*
+
+#### Specification review rounds
+
+*
+Table showing spec review rounds
+*
+
+#### Last specification review
+
+*
+LLM and prompt used
+LLM output, possibly with strikethrough
+*
+
+#### Implementation review rounds
+
+*
+Table showing implementation review rounds
+*
+
+#### Last Implementation review
+
+*
+LLM and prompt used
+LLM output, possibly with strikethrough
+*
+
+### Amy Smith
+
+GitHub userid: Kenzpie
+
+#### Contributions
+
+Created first implementation of the Superscript Spec and ran the first two rounds of test-oriented LLM review.
+
+#### Specification review rounds
+
+Haven't run any yet.
+Will add after Dias formats his spec changes after Dr. Jones's last review into '# of rounds' chart.
+
+#### Last specification review
+
+^^to be added
+
+#### Implementation review rounds
+
+Note: Initial creation not reflected in this chart, and the first review rounds focus on test errors, not overall improvement.
+
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| 1 | 2 | Removed extra blank lines in formatter output and after comparison when comparing fixture conventions. |
+| 2 | 1 | Fixed a Windows line-ending compatability issue in rendering verification tool. |
+
+#### Last Implementation review
+
+LLM: GPT-6.1 Sol Light.
+
+Prompt: "Please conduct the next review round focusing on bigger test issues."
+
+Output: "No additional defects were identified in the superscript implementation during this review. The implementation appears consistent with the superscript specification and fits the project’s existing parser and formatter architecture. "
+
+### Alisher Arginbekov
+
+GitHub userid: aarginbekov
+
+#### Contributions
+
+*
+To be added
+*
+
+#### Specification review rounds
+
+*
+Table showing spec review rounds
+*
+
+#### Last specification review
+
+*
+LLM and prompt used
+LLM output, possibly with strikethrough
+*
+
+#### Implementation review rounds
+
+*
+Table showing implementation review rounds
+*
+
+#### Last Implementation review
+
+*
+LLM and prompt used
+LLM output, possibly with strikethrough
+*
+
+### Aslan Tasmagambetov
+
+GitHub userid: tasma-07
+
+#### Contributions
+
+*
+To be added
+*
+
+#### Specification review rounds
+
+*
+Table showing spec review rounds
+*
+
+#### Last specification review
+
+*
+LLM and prompt used
+LLM output, possibly with strikethrough
+*
+
+#### Implementation review rounds
+
+*
+Table showing implementation review rounds
+*
+
+#### Last Implementation review
+
+*
+LLM and prompt used
+LLM output, possibly with strikethrough
+*
+

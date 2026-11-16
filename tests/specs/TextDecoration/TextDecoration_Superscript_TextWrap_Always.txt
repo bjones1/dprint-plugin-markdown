@@ -1,0 +1,15 @@
+~~ textWrap: always, lineWidth: 20 ~~
+!! CJK !!
+^中^
+字
+
+[expect]
+^中^
+字
+
+!! wrapping !!
+a ^b c d e f g h i j^ k
+
+[expect]
+a ^b c d e f g h i
+j^ k

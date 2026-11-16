@@ -333,7 +333,7 @@ impl<'a, 'b> InlineParser<'a, 'b> {
         b'[' => self.parse_open_bracket(),
         b'!' if self.text.byte(self.pos + 1) == Some(b'[') => self.parse_open_bracket(),
         b']' => self.parse_close_bracket(),
-        b'*' | b'_' | b'~' => self.parse_emphasis_delimiter(byte),
+        b'*' | b'_' | b'~' | b'^' => self.parse_emphasis_delimiter(byte),
         b'$' => self.parse_math(),
         _ => self.pos += 1,
       }
@@ -732,6 +732,8 @@ impl<'a, 'b> InlineParser<'a, 'b> {
       return;
     }
     let (can_open, can_close) = self.flanking(start, end, byte);
+    // A caret immediately after a bracket belongs to a footnote marker.
+    let can_open = can_open && !(byte == b'^' && self.text.char_before(start) == Some('['));
 
     if !can_open && !can_close {
       self.pos = end;
@@ -883,6 +885,7 @@ impl<'a, 'b> InlineParser<'a, 'b> {
 
     let kind = match (byte, use_len) {
       (b'~', _) => TextDecorationKind::Strikethrough,
+      (b'^', _) => TextDecorationKind::Superscript,
       (_, 2) => TextDecorationKind::Strong,
       _ => TextDecorationKind::Emphasis,
     };
