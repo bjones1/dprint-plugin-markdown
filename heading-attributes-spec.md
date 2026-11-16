@@ -28,6 +28,16 @@ A quoted value ends at the next quote of the same kind. A backslash inside it do
 
 Examples of invalid blocks: `{}`, `{:}`, `{::x}`, `{#}`, `{.}`, `{key=}`, `{a="b}`, `{a=b=c}`, `{x\y}`.
 
+### Parser integration
+
+After finding a heading and removing its heading markers, the parser checks the original text for an attribute block at the end. It does this before parsing inline Markdown, such as bold text or links.
+
+While checking the block, the parser treats its contents as plain text. For example, `**neat**` inside an attribute value cannot become bold or match `**` elsewhere in the heading.
+
+The parser also checks whether the opening `{` is inside Markdown that started earlier, such as a code span. If it is, the block is rejected and the whole heading is parsed normally.
+
+If the block is accepted, the parser reads only the heading text before it as Markdown. It keeps the attribute block separately so the formatter can preserve its contents.
+
 ## Output
 
 - The heading text is formatted as it is today. It is followed by exactly one space and the block. The space replaces the spaces between the text and the block. Hashes at the end of the text are not escaped, because the block follows them on the line. Decisions today's formatter makes from the whole heading content, such as how to write emphasis so that it reads back the same, still take the block into account, both where they read the file and where they read back the output. Where those decisions fall back to writing the heading content exactly as in the file, that includes the spaces before the block and the block itself.
