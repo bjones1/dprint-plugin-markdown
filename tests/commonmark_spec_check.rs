@@ -264,7 +264,7 @@ fn show(text: &str) -> String {
 
 fn render_document(source: &str, entities: &HashMap<String, String>) -> String {
   let bump = Bump::new();
-  let file = match parser::parse(source, &bump) {
+  let file = match parser::parse(source, &bump, false) {
     Ok(file) => file,
     Err(err) => return format!("<!--parse error: {err}-->\n"),
   };
@@ -490,6 +490,7 @@ impl<'a> Renderer<'a> {
           TextDecorationKind::Emphasis => "em",
           TextDecorationKind::Strong => "strong",
           TextDecorationKind::Strikethrough => "del",
+          TextDecorationKind::Subscript => "sub",
         };
         self.out.push_str(&format!("<{tag}>"));
         self.render_inlines(decoration.children);
@@ -621,7 +622,7 @@ impl<'a> Renderer<'a> {
       }
     }
     let bump = Bump::new();
-    let Ok(file) = parser::parse(&text, &bump) else {
+    let Ok(file) = parser::parse(&text, &bump, false) else {
       return String::new();
     };
     let mut out = String::new();

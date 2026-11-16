@@ -110,7 +110,7 @@ fn sweep_corpus(directory: &Path) {
     .filter_map(|path| {
       let source = std::fs::read_to_string(path).ok()?;
       let bump = Bump::new();
-      let file = parser::parse(&source, &bump).ok()?;
+      let file = parser::parse(&source, &bump, false).ok()?;
       let message = parser::spec_test::validate_text_coverage(&file, &source).err()?;
       Some(format!("{}\n  {}", path.display(), message))
     })

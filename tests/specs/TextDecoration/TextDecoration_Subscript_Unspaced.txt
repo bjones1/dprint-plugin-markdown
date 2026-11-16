@@ -1,0 +1,14 @@
+~~ subscript: true, lineWidth: 12, textWrap: always, wrapUnspacedScripts: true ~~
+!! should write a break beside a lone tilde as a space rather than drop it !!
+~日
+~本~
+
+[expect]
+~日 ~本~
+
+!! should not move a subscript onto content that reads the same !!
+~日本
+~日本~
+
+[expect]
+~日本 ~日本~

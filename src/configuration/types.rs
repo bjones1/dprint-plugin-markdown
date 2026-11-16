@@ -25,6 +25,11 @@ pub struct Configuration {
   /// before or after it instead. A line break written within a span is still
   /// kept where `text_wrap` keeps line breaks.
   pub wrap_code_spans: bool,
+  /// Whether a pair of single tildes is subscript (`H~2~O`), as in
+  /// pulldown-cmark's `ENABLE_SUBSCRIPT`, rather than strikethrough. Off by
+  /// default, since turning it on changes how an existing `~x~` is read. A
+  /// pair of double tildes is strikethrough either way.
+  pub subscript: bool,
   pub emphasis_kind: EmphasisKind,
   pub strong_kind: StrongKind,
   pub hard_break_kind: HardBreakKind,

@@ -77,6 +77,12 @@ impl ConfigurationBuilder {
     self.insert("wrapCodeSpans", value.into())
   }
 
+  /// Whether a pair of single tildes is subscript rather than strikethrough.
+  /// Default: `false`
+  pub fn subscript(&mut self, value: bool) -> &mut Self {
+    self.insert("subscript", value.into())
+  }
+
   /// The character to use for emphasis/italics.
   /// Default: `EmphasisKind::Underscores`
   pub fn emphasis_kind(&mut self, value: EmphasisKind) -> &mut Self {
@@ -286,6 +292,7 @@ mod tests {
       .text_wrap(TextWrap::Always)
       .wrap_unspaced_scripts(true)
       .wrap_code_spans(false)
+      .subscript(true)
       .emphasis_kind(EmphasisKind::Asterisks)
       .strong_kind(StrongKind::Underscores)
       .hard_break_kind(HardBreakKind::DoubleSpace)
@@ -314,7 +321,7 @@ mod tests {
       .ignore_end_directive("test");
 
     let inner_config = config.get_inner_config();
-    assert_eq!(inner_config.len(), 31);
+    assert_eq!(inner_config.len(), 32);
     let diagnostics = resolve_config(inner_config, &Default::default()).diagnostics;
     assert_eq!(diagnostics.len(), 0);
   }

@@ -1,0 +1,42 @@
+~~ subscript: true ~~
+!! should leave a tilde as text when an emphasis closes first, as pulldown-cmark does !!
+*a ~b* c~
+
+[expect]
+_a ~b_ c~
+
+!! should let a subscript that closes first take the asterisk, as pulldown-cmark does !!
+~a *b~ c*
+
+[expect]
+~a *b~ c*
+
+!! should let a subscript that closes first take an asterisk written against its tilde !!
+~*a~*
+
+[expect]
+~*a~*
+
+!! should let an emphasis that closes first take a tilde written against its asterisk !!
+*~b*~
+
+[expect]
+_~b_~
+
+!! should not open a subscript with a tilde that follows a word and precedes punctuation !!
+a~(*b~ c*
+
+[expect]
+a~(_b~ c_
+
+!! should open a subscript with a tilde before punctuation at a line start !!
+~(*b~ c*
+
+[expect]
+~(*b~ c*
+
+!! should open a subscript with a tilde before punctuation after punctuation !!
+(~*b~ c*
+
+[expect]
+(~*b~ c*
