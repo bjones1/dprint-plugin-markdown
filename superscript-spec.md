@@ -24,7 +24,7 @@ back with the carets it was written with. There is only one delimiter
 character, so there is nothing to normalize and no new configuration option.
 
 Out of scope: subscript `~text~`
-([PR #1](https://github.com/bjones1/dprint-plugin-markdown/pull/1)), and
+([PR #3](https://github.com/bjones1/dprint-plugin-markdown/pull/3)), and
 `<sup>` HTML, which is already kept as inline HTML. Existing formatter bugs
 that hit `*` and `_` hit `^` the same way and are not fixed here: for
 example, turning a setext heading into ATX drops a line break
@@ -62,8 +62,8 @@ So:
 `x^2^` is a superscript in Pandoc and in the unreleased pulldown-cmark
 `master`, but not in 0.13, which this follows.
 
-Known differences from pulldown-cmark 0.13, each formatted without a change
-in rendering:
+Known differences from pulldown-cmark 0.13. The inputs shown are formatted
+without a change in rendering:
 
 - pulldown-cmark keeps one "openers bottom" shared by all `^` and `~` runs.
   This parser keys it by character, run length mod 3 and whether the closer
@@ -72,21 +72,28 @@ in rendering:
   one here.
 - pulldown-cmark opens a superscript after `[` when the bracket turns out
   not to be a footnote reference: `[^a^ b` (no `]`) and `[^a^](/u)` (a link).
-  This parser reads the `^` after `[` as text.
+  This parser reads the `^` after `[` as text. So the first row of the Goal
+  table still happens after `[`: in `[^a *b^ c*` this parser reads emphasis
+  and writes `[^a _b^ c_`, as it does today.
 
 ## Data structures
 
-No new types. A superscript is the existing `TextDecoration`
-(`src/parser/ast.rs`) with a new kind:
+No new types. The existing `TextDecorationKind` (`src/parser/ast.rs`), the
+`kind` field of a `TextDecoration`, gets one more variant:
 
 ```rust
 pub enum TextDecorationKind {
   Emphasis,
   Strong,
   Strikethrough,
-  Superscript,
+  Superscript, // added
 }
 ```
+
+A superscript is a `TextDecoration` of that kind, so it goes through the same
+parser and generator code as the other three. `gen_text_decoration()` in
+`src/generation/generate.rs`, which already writes their delimiters, gets
+arms for `^` and `^^` (see Changes).
 
 Its `span` covers the carets and `children` holds what is between them. The
 number of carets (1 or 2) is not stored: it is
