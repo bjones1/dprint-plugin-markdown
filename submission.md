@@ -455,4 +455,93 @@ GitHub userid: amir-kbtu-pge
 
 GitHub userid: diaslesbay2003kbtu
 
-(Dias's final contributions, review tables and last reviews)
+#### Contributions
+
+Added `TextDecoration_Subscript_Emphasis.txt`, seven fixture cases that check
+the formatter reads interleaved subscript and emphasis, and punctuation beside a
+`~`, the way pulldown-cmark does (each result measured at commit `1c1a312`),
+and named the file in the specification's test plan.
+
+The cases were written with Claude Sonnet 5.5 (`claude-sonnet-5-5`) through
+the `common:implement` workflow, one case at a time. Every case was already
+green, so no production code changed. Before this, I wrote a rewrite of the
+specification around the formatter goal with two review rounds (11 and 9
+findings); the team's rewrite replaced it, so those rounds are not counted here.
+
+#### Specification review rounds
+
+LLM: Claude Sonnet 5.5 (`claude-sonnet-5-5`), default effort, a fresh session
+each round, on the team's specification.
+
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| 1     | 23       | Test plan names the new fixture file; a paragraph on interleaving and punctuation cases added; most requests for more test rows not applied |
+| 2     | 14       | Goal no longer promises every subscript pulldown-cmark reads, and points to the known difference; the rest was wording or tests already covered elsewhere |
+
+Findings were counted from each review's numbered items and bullets.
+
+#### Last specification review
+
+Prompting Claude Sonnet 5.5 (`claude-sonnet-5-5`), default effort, in a fresh
+session with `Review the section named "Subscript support" in
+src/parser/subscript-spec.md. Do not edit any files; return the review as your
+final message.` produced the following output; strikethrough marks findings I
+judged incorrect or irrelevant.
+
+> I read the file only. I did not check the claims about `inline.rs`, `generate.rs` or pulldown-cmark against the code.
+>
+> 1. The Goal says every subscript stays a subscript, but lines 60-62 admit that `~a ~~b~` is a subscript in pulldown-cmark and text here. Weaken the Goal and list the deviation.
+> 2. The rule-of-three change affects `~~` too; say so and add mixed rows (`~~a~b~~`, `~a~~b~~`).
+> 3. ~~Intraword flanking has a large blast radius (`10~20 and 30~40`); the schema text must name the example.~~
+> 4. ~~The test table lacks a "pulldown-cmark reads as" column; the wording "measured ... for the draft" will go stale.~~
+> 5. ~~Missing test cases: unmatched runs, subscript in strong or headings, soft breaks, `format_range` with the option on, config tests.~~
+> 6. ~~Clarity: define "a pair of single tildes"; make the existing `~` behavior explicit in one place; reference-link wording; hard wrapping; the H1 id; a README or changelog entry.~~
+
+The review above is shortened from the full output. Item 1 was applied. Item 2
+was not applied, because the mixed rows were not measured. Item 3 is struck
+because the schema description already names the example; item 4 because the
+spec files, not a table column, hold the expected output; item 5 because the
+cases it lists are covered by the existing fixtures, and `format_range` with the
+option on is already tested by `Range_Subscript_On.txt`; item 6 because it asks
+for wording and wrapping changes only.
+
+#### Implementation review rounds
+
+LLM: Claude Sonnet 5.5 (`claude-sonnet-5-5`), default effort, a fresh session
+each round. The implementation was written with the same model.
+
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| 1     | 7        | Expectations traced by hand (the reviewer could not run `cargo`): none wrong; two cases holding two inputs each split into separate tests; every input measured at `1c1a312`; the file named in the spec |
+| 2     | 6        | No wrong expectations; one test title that misdescribed which delimiter is left as text renamed; the spec paragraph now describes both kinds of case |
+
+Cases 1, 4 and 5 of the file would give the same output with `subscript` off
+(emphasis wins anyway), so they guard against a subscript over-matching, not
+against the option being inactive. The other four depend on the option.
+
+#### Last implementation review
+
+Prompting Claude Sonnet 5.5 (`claude-sonnet-5-5`), default effort, in a fresh
+session with `Review the implementation of the "Subscript support" section of
+src/parser/subscript-spec.md. The implementation is the new untracked file
+tests/specs/TextDecoration/TextDecoration_Subscript_Emphasis.txt and the changed
+paragraph under "Test cases" in the spec. Check that its cases agree with what
+the spec says and look for wrong expectations or tests that would pass for the
+wrong reason. Rust is available at /opt/homebrew/opt/rustup/bin (add it to
+PATH); you may run `cargo test --test specs Subscript`. Do not edit any files;
+return the review as your final message.` produced the following output;
+strikethrough marks findings I judged incorrect or irrelevant.
+
+> The new spec file matches the spec paragraph and pulldown-cmark, and I found no wrong expectations. `cargo test --test specs Subscript` passes all 4 spec files, and all 7 cases run and pass with `subscript: true`. I ran all 7 inputs through pulldown-cmark 0.13.6 (the registry version, not the pinned commit); every expectation agrees.
+>
+> 1. The first, fourth and fifth cases would pass with the option off; they guard against over-matching, not against the option being inactive.
+> 2. The new spec paragraph only half describes the punctuation cases.
+> 3. ~~The punctuation coverage is one-sided: nothing covers a closing `~` with punctuation before it and a word after it.~~
+> 4. Cases 5, 6 and 7 form a good contrast set; a wrong parse would produce `_`.
+> 5. ~~Minor gaps: no interleaving with `~~` or `_`, no `emphasisKind: asterisks` variant, no rows in the spec table.~~
+> 6. In the first case, "take the tilde" is slightly misleading.
+
+The review above is shortened from the full output. Items 2 and 6 were applied;
+item 1 is recorded above as a limit of those cases. Item 3 is struck because
+its inputs were not measured against pulldown-cmark, and item 5 because it asks
+for more rows of the same kind.

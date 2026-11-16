@@ -4,8 +4,9 @@ Goal
 ----
 
 dprint is a formatter: it reads Markdown and writes Markdown. The goal is that,
-when the user turns subscript on, the formatter keeps every subscript in the
-document a subscript (`H~2~O` stays `H~2~O`) and writes nothing that parses
+when the user turns subscript on, the formatter keeps every subscript it reads
+a subscript (`H~2~O` stays `H~2~O`; the one input it reads differently from
+pulldown-cmark is described under the parser changes) and writes nothing that parses
 differently from what it read. Which `~` runs are subscript follows the
 [pulldown-cmark subscript syntax](https://github.com/pulldown-cmark/pulldown-cmark/blob/1c1a3123207d9e07fdfcf3d3418a047907185afb/pulldown-cmark/specs/super_sub.txt):
 a pair of single tildes.
@@ -86,7 +87,11 @@ runner already formats each output a second time and checks it doesn't change.
 `keeps_subscripts_through_formatting` in `format_text.rs` formats generated
 text with the option on and checks the same, and that the decorations survive.
 A wrapping case, `aaaa H~2~O` becoming `aaaa`⏎`H~2~O`, goes in
-`TextDecoration_Subscript_TextWrap_Always.txt` with `lineWidth: 6`.
+`TextDecoration_Subscript_TextWrap_Always.txt` with `lineWidth: 6`. Two kinds
+of case go in `TextDecoration_Subscript_Emphasis.txt`. Where a subscript and an
+emphasis interleave, the pair that closes first takes the shared delimiter, as in
+pulldown-cmark. Where punctuation follows a `~`, the `~` opens only at a line
+start or after whitespace or punctuation, so `a~(*b~ c*` has no subscript.
 
 | Input                     | `subscript` | Output                       |
 | ------------------------- | ----------- | ---------------------------- |
