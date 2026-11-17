@@ -9,6 +9,7 @@
 
 mod ast;
 mod block;
+mod heading_attributes;
 mod inline;
 mod links;
 mod source;
@@ -32,6 +33,8 @@ pub use block::is_whole_html_block;
 pub use block::line_start_escape;
 pub use block::starts_block_at_block_start;
 pub use block::starts_block_in_paragraph;
+pub use heading_attributes::read_block as read_attribute_block;
+pub use heading_attributes::BlockPiece as AttributeBlockPiece;
 pub use inline::is_markdown_punctuation;
 pub use source::SPACES;
 pub use source::WHITESPACE;
@@ -94,7 +97,8 @@ pub fn parse<'a>(source: &'a str, bump: &'a Bump) -> Result<SourceFile<'a>, Pars
 }
 
 /// Parses text as the inline content of a paragraph, resolving the references
-/// within it against the given labels.
+/// within it against the given labels, or, where `heading` is set, as the
+/// content of a heading, which may end with an attribute block.
 ///
 /// This is how the formatter reads back what it wrote a block's content as, to
 /// check that it holds the decorations the block did.
@@ -103,10 +107,15 @@ pub fn parse_inline_content<'a>(
   bump: &'a Bump,
   link_labels: Labels<'a>,
   footnote_labels: Labels<'a>,
+  heading: bool,
 ) -> &'a [Node<'a>] {
   let lines = source_lines(text, bump);
   let context = InlineContext::new(text, bump, link_labels, footnote_labels, false);
-  parse_inlines(lines, &context)
+  if heading {
+    heading_attributes::parse_heading_inlines(lines, &context).0
+  } else {
+    parse_inlines(lines, &context)
+  }
 }
 
 /// Parses the front matter at the top of the file, returning the line the rest

@@ -1,0 +1,15 @@
+~~ heading.kind: setext, textWrap: always, lineWidth: 14 ~~
+!! should wrap a heading with a block within a block quote and a list !!
+> # Alpha beta gamma delta {#id .x}
+
+- # Alpha beta gamma {#id}
+
+[expect]
+> Alpha beta
+> gamma
+> delta {#id .x}
+> ==============
+
+- Alpha beta
+  gamma {#id}
+  ===========

@@ -1,0 +1,21 @@
+~~ heading.kind: atx ~~
+!! should preserve bold-looking attribute values without parsing them as heading decorations !!
+# foo { bar="test **neat** stuff" }
+
+# **foo** {title="**neat**"}
+
+[expect]
+# foo { bar="test **neat** stuff" }
+
+# **foo** {title="**neat**"}
+
+!! should not close heading emphasis with a delimiter inside an attribute !!
+# *foo {title="bar*"}
+
+*foo {title="bar*"}
+---
+
+[expect]
+# *foo {title="bar*"}
+
+## *foo {title="bar*"}

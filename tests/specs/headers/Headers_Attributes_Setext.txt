@@ -1,0 +1,12 @@
+~~ heading.kind: setext ~~
+!! should check whether the heading can be setext with the block in its content !!
+# *** {#id}
+
+## --- {#id}
+
+[expect]
+*** {#id}
+=========
+
+--- {#id}
+---------

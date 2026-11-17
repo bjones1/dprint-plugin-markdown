@@ -142,6 +142,15 @@ fn gen_checked_decorations<'a>(nodes: &[Node<'a>], items: PrintItems<'a>, contex
 /// Whether the decorations read out of the text the items print as are the
 /// ones the nodes hold.
 fn reads_back_decorations<'a>(nodes: &[Node], items: PrintItems<'a>, context: &Context<'a>) -> bool {
+  reads_back_decorations_with_attributes(nodes, items, context, false)
+}
+
+fn reads_back_decorations_with_attributes<'a>(
+  nodes: &[Node],
+  items: PrintItems<'a>,
+  context: &Context<'a>,
+  heading: bool,
+) -> bool {
   let line_width = context
     .configuration
     .line_width
@@ -161,6 +170,7 @@ fn reads_back_decorations<'a>(nodes: &[Node], items: PrintItems<'a>, context: &C
     context.arena.bump(),
     context.link_labels(),
     context.footnote_labels(),
+    heading,
   );
   written_decorations(read) == written_decorations(nodes)
 }
@@ -201,6 +211,18 @@ fn push_written_content(nodes: &[Node], content: &mut String) {
     }
     push_written_content(node.children(), content);
   }
+}
+
+/// The runs of delimiter characters within a heading's text and the attribute
+/// block it ends with, which is read on its own, so that a run in the block
+/// that would be text were the block not recognized counts the same as it
+/// would then (ex. the lone backtick of `{title="a ` b"}`), while one within a
+/// code span of the block's own doesn't.
+fn heading_delimiter_runs(attributes: &HeadingAttributes, context: &Context) -> DelimiterRuns {
+  let mut runs = DelimiterRuns::default();
+  push_delimiter_runs(attributes.children, context, &mut runs);
+  push_delimiter_runs(attributes.block_children, context, &mut runs);
+  runs
 }
 
 /// The runs of delimiter characters within the content of a block, which
@@ -703,19 +725,30 @@ fn gen_heading<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> PrintIte
   // they underline reads as the paragraph a heading is made of -- an html
   // comment at the start of a line is a block of its own, which nothing can
   // underline. The heading's text begins a block rather than interrupting one,
-  // so it's what a block start reads that decides this
+  // so it's what a block start reads that decides this. A backtick in an
+  // attribute block keeps a line the text starts with ``` on from being a code
+  // fence (ex. `# ``` a {t=`b`}`), which it would be again where wrapping
+  // leaves the block on a later line, so such a heading stays atx
+  let hides_code_fence = heading.attributes.as_ref().is_some_and(|attributes| {
+    matches!(
+      attributes.children.first(),
+      Some(Node::Text(text)) if text.text.starts_with("```") && crate::parser::starts_block_at_block_start(text.text)
+    )
+  });
   if heading.level < 3
     && context.configuration.heading_kind == HeadingKind::Setext
+    && !hides_code_fence
     && !heading
       .children
       .first()
       .is_some_and(|child| child.starts_block_at_block_start(context.file_text))
   {
-    let children = gen_nodes(heading.children, context);
+    let children = gen_heading_content(heading, context);
     let (children, cloned_children) = clone_items(children);
 
     // render the heading text with the actual line width so wrapping is
-    // applied, then measure the longest line for the underline width.
+    // applied, then measure the longest line for the underline width, which
+    // counts an attribute block on the line it ends.
     let underline_width = measure_longest_line_width(cloned_children, context.configuration.line_width);
 
     // an underline with no text above it isn't a heading at all, so an
@@ -732,9 +765,14 @@ fn gen_heading<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> PrintIte
     return gen_atx_heading(heading.level, children);
   }
 
-  // atx headings apply to all levels.
-  let escaped = closing_hashes_start(heading);
-  let children = context.with_escaped_closing_hashes(escaped, |context| gen_nodes(heading.children, context));
+  // atx headings apply to all levels. Hashes that an attribute block follows
+  // don't end the line, so they can't be read as a closing sequence
+  let children = if heading.attributes.is_some() {
+    gen_heading_content(heading, context)
+  } else {
+    let escaped = closing_hashes_start(heading);
+    context.with_escaped_closing_hashes(escaped, |context| gen_nodes(heading.children, context))
+  };
   return gen_atx_heading(heading.level, children);
 
   /// Where the text an atx heading ends with starts, when it ends with hashes
@@ -756,6 +794,134 @@ fn gen_heading<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> PrintIte
     let is_closing = before.is_empty() || before.ends_with([' ', '\t']);
     is_closing.then_some(text.span.start)
   }
+}
+
+/// Writes the content of a heading: its text, then the attribute block it ends
+/// with, if any.
+///
+/// The block is written after one space that the line can't be broken at, so
+/// it stays on the line with the end of the text, and with spaces outside its
+/// quoted values collapsed the way `gen_attribute_block` describes. How the
+/// text's decorations and code spans are written is decided with the block in
+/// place, read on its own, so that the text is written the way it is today
+/// whether or not the block is recognized. The output is read back with the
+/// block in place to check that.
+fn gen_heading_content<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> PrintItems<'a> {
+  let Some(attributes) = &heading.attributes else {
+    return gen_nodes(heading.children, context);
+  };
+  // a heading is only ever written among blocks, which have no delimiter runs
+  // of their own for the heading's to be gathered within
+  debug_assert!(context.delimiter_runs().is_none());
+
+  let runs = heading_delimiter_runs(attributes, context);
+  let needs_checking = decorations_need_checking(heading.children, &runs, context);
+  let items = context.with_delimiter_runs(Some(runs), |context| gen_text_and_attribute_block(attributes, context));
+  if !needs_checking {
+    return items;
+  }
+
+  // the same as `gen_checked_decorations`, but with the text written apart
+  // from the block rather than as the nodes the block was read within
+  let (items, rendered) = clone_items(items);
+  if reads_back_decorations_with_attributes(heading.children, rendered, context, true) {
+    return items;
+  }
+  let preserved = context.with_preserved_decorations(|context| {
+    let runs = heading_delimiter_runs(attributes, context);
+    context.with_delimiter_runs(Some(runs), |context| gen_text_and_attribute_block(attributes, context))
+  });
+  let (preserved, rendered) = clone_items(preserved);
+  if reads_back_decorations_with_attributes(heading.children, rendered, context, true) {
+    return preserved;
+  }
+  let (Some(first), Some(last)) = (heading.children.first(), heading.children.last()) else {
+    return preserved;
+  };
+  gen_ignored_text(&context.file_text[first.span().start..last.span().end], false, context)
+}
+
+fn gen_text_and_attribute_block<'a>(attributes: &HeadingAttributes<'a>, context: &mut Context<'a>) -> PrintItems<'a> {
+  // the block makes the line it ends longer, so the text wraps where it didn't
+  // before. The lines the text starts, which are its first and any after a
+  // hard break, are marked the way a paragraph's are, so that the words they
+  // start with (ex. `***`) can't be wrapped onto a line of their own
+  let mut line_starts = LineStarts::default();
+  let mut at_line_start = true;
+  for child in attributes.children {
+    if at_line_start {
+      line_starts.push(child.span().start);
+    }
+    at_line_start = matches!(child, Node::HardBreak(_));
+  }
+
+  // a tag the text starts with would start an html block if it were left on a
+  // line of its own, and nothing else keeps what follows it from being wrapped
+  // away from it, so the space after it is written as one the line can't be
+  // broken at
+  let leading_tag_len = match attributes.children {
+    [Node::Html(html), next, ..]
+      if !matches!(next, Node::SoftBreak(_) | Node::HardBreak(_))
+        && crate::parser::starts_block_at_block_start(html.text)
+        && context.file_text[html.span.end..].starts_with([' ', '\t']) =>
+    {
+      1
+    }
+    _ => 0,
+  };
+
+  // the text's last words are read together with the block after them, which
+  // is on their line (ex. a footnote reference and colon before it would start
+  // a definition at the start of a line)
+  let mut items = context.with_line_starts(line_starts, attributes.span.end, |context| {
+    let (tag, rest) = attributes.children.split_at(leading_tag_len);
+    let mut items = gen_nodes(tag, context);
+    if !tag.is_empty() {
+      items.push_space();
+    }
+    items.extend(gen_nodes(rest, context));
+    items
+  });
+  // a plain space rather than a signal, so the printer can't break the line
+  // there and moves the end of the text to the next line along with the block
+  items.push_space();
+  items.extend(gen_attribute_block(attributes, context));
+  items
+}
+
+/// Writes an attribute block with each run of spaces outside its quoted
+/// values written as one space, except where the run is within something that
+/// starts within the block (ex. a code span), whose spaces are left as they
+/// are. Today's formatter keeps the spaces within a code span, html or math,
+/// so a block that isn't recognized because it's on a line of its own keeps
+/// the same spaces once it's joined onto the text's line and recognized.
+fn gen_attribute_block<'a>(attributes: &HeadingAttributes<'a>, context: &Context<'a>) -> PrintItems<'a> {
+  let mut items = PrintItems::new(context.arena);
+  let text = attributes.text;
+  let is_within_element = |position: usize| {
+    attributes
+      .block_children
+      .iter()
+      .any(|child| !matches!(child, Node::Text(_)) && child.span().start <= position && position < child.span().end)
+  };
+  let read = crate::parser::read_attribute_block(text, |piece| match piece {
+    AttributeBlockPiece::Text(start, end) => {
+      items.extend(ir_helpers::gen_from_raw_string(context.arena, &text[start..end]))
+    }
+    AttributeBlockPiece::Spaces(start, end) => {
+      if is_within_element(attributes.span.start + start) {
+        items.extend(ir_helpers::gen_from_raw_string(context.arena, &text[start..end]));
+      } else {
+        items.push_space();
+      }
+    }
+    AttributeBlockPiece::End(_) => {}
+  });
+  debug_assert!(
+    read.is_some(),
+    "the parser recognized an attribute block that doesn't read as one"
+  );
+  items
 }
 
 fn gen_atx_heading<'a>(level: u8, children: PrintItems<'a>) -> PrintItems<'a> {
@@ -3451,6 +3617,15 @@ fn starts_block_at_line_start(node: &Node, context: &Context) -> bool {
   let span = node.span();
   let following_text = context.text_from(span.start, span.end);
   node.starts_block_at_line_start(following_text, text_can_be_wrapped_away(context))
+    // a footnote reference with a colon after it reads as the start of a
+    // definition at the start of a line. In a heading's text with an attribute
+    // block after it, such a reference is kept off one wherever it is: the
+    // block can't be wrapped away from the last words, so even the colon that
+    // ends the text is followed by more on its line. Paragraphs, and headings
+    // without a block, are left wrapping as they did
+    || matches!(node, Node::FootnoteReference(_))
+      && context.is_within_line_text()
+      && crate::parser::starts_block_in_paragraph(following_text)
 }
 
 /// Whether the text after a word can be written on the line below it, which is

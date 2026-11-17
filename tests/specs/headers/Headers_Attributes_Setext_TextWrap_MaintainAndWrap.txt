@@ -1,0 +1,10 @@
+~~ heading.kind: setext, textWrap: maintainAndWrap, lineWidth: 12 ~~
+!! should wrap a long line and keep the block with the last word !!
+Alpha beta gamma delta {#id}
+===
+
+[expect]
+Alpha beta
+gamma
+delta {#id}
+===========

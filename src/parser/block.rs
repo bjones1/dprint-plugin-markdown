@@ -10,6 +10,7 @@ use dprint_core::formatting::bumpalo::collections::Vec as BumpVec;
 use dprint_core::formatting::bumpalo::Bump;
 
 use super::ast::*;
+use super::heading_attributes;
 use super::inline::parse_inlines;
 use super::inline::InlineContext;
 use super::inline::InlineText;
@@ -120,16 +121,54 @@ impl<'a, 'c> BlockParser<'a, 'c> {
       content
     };
 
+    let content = [content];
+    let (children, attributes) = self.parse_heading_content(&content);
     nodes.push(
       Heading {
         span: Span::new(line.start, lines[index].trim_end().end()),
         level,
         style: HeadingStyle::Atx,
-        children: self.parse_inlines(&[content]),
+        children,
+        attributes,
       }
       .into(),
     );
     index + 1
+  }
+
+  /// The inline nodes a heading with the given content reads as, and the
+  /// attribute block it ends with, if it ends with one, along with its text
+  /// read without it.
+  fn parse_heading_content(&self, content: &[ContentLine<'a>]) -> (&'a [Node<'a>], Option<HeadingAttributes<'a>>) {
+    let (children, position) = heading_attributes::parse_heading_inlines(content, self.context);
+    let attributes = position.and_then(|position| {
+      let (last, before) = content.split_last()?;
+      let last = last.trim_end();
+      let start = position - last.start;
+
+      // the text is read again without the block, so that it can be written
+      // apart from it
+      let mut text_line = last;
+      text_line.text = last.text[..start].trim_end_matches(' ');
+      let mut text_lines = BumpVec::from_iter_in(before.iter().copied(), self.context.bump);
+      text_lines.push(text_line);
+
+      let block_line = ContentLine {
+        start: position,
+        text: &last.text[start..],
+        virtual_spaces: 0,
+        column: last.column + start,
+        is_lazy: last.is_lazy,
+      };
+
+      Some(HeadingAttributes {
+        span: Span::new(position, last.end()),
+        text: block_line.text,
+        children: self.parse_inlines(&text_lines),
+        block_children: self.parse_inlines(&[block_line]),
+      })
+    });
+    (children, attributes)
   }
 
   fn parse_fenced_code(&self, lines: &[ContentLine<'a>], index: usize, nodes: &mut BumpVec<'a, Node<'a>>) -> usize {
@@ -516,12 +555,14 @@ impl<'a, 'c> BlockParser<'a, 'c> {
       if line.indent_columns() < CODE_INDENT && !line.is_lazy {
         if let Some(level) = setext_heading_level(rest) {
           let content = &lines[content_start..end];
+          let (children, attributes) = self.parse_heading_content(content);
           nodes.push(
             Heading {
               span: Span::new(content[0].rest_start(), line.trim_end().end()),
               level,
               style: HeadingStyle::Setext,
-              children: self.parse_inlines(content),
+              children,
+              attributes,
             }
             .into(),
           );

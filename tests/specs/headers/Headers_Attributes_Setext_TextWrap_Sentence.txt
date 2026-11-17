@@ -1,0 +1,8 @@
+~~ heading.kind: setext, textWrap: sentence, lineWidth: 20 ~~
+!! should keep the block with the last word of the last sentence !!
+# One. Two. {#id}
+
+[expect]
+One.
+Two. {#id}
+==========

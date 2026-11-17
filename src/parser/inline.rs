@@ -65,6 +65,19 @@ struct InlineScratch<'a> {
 }
 
 pub fn parse_inlines<'a>(lines: &[ContentLine<'a>], context: &InlineContext<'a>) -> &'a [Node<'a>] {
+  parse_inlines_before_attributes(lines, context, None)
+}
+
+/// Parses the lines the same as `parse_inlines`, except that everything from
+/// `attribute_start` on, which is where in the file the `{` of a heading's
+/// attribute block is, is read as plain text. Nothing in the block can then
+/// close what the text before it opens, apart from what looks ahead for its
+/// end as it opens (ex. a code span), which can still take the `{` in.
+pub fn parse_inlines_before_attributes<'a>(
+  lines: &[ContentLine<'a>],
+  context: &InlineContext<'a>,
+  attribute_start: Option<usize>,
+) -> &'a [Node<'a>] {
   if context.collect_only || lines.is_empty() {
     return &[];
   }
@@ -83,6 +96,7 @@ pub fn parse_inlines<'a>(lines: &[ContentLine<'a>], context: &InlineContext<'a>)
     context,
     pos: 0,
     pending_text_start: 0,
+    attribute_start,
     nodes: &mut scratch.nodes,
     delimiters: &mut scratch.delimiters,
   };
@@ -283,6 +297,9 @@ struct InlineParser<'a, 'b> {
   text: &'b InlineText<'a>,
   context: &'b InlineContext<'a>,
   pos: usize,
+  /// Where in the file the `{` of a heading's attribute block is, from which
+  /// on everything is plain text.
+  attribute_start: Option<usize>,
   /// Where the text that hasn't been turned into a node yet begins.
   pending_text_start: usize,
   /// The nodes parsed so far. Emphasis leaves holes behind when it wraps the
@@ -325,6 +342,15 @@ enum DelimiterKind {
 impl<'a, 'b> InlineParser<'a, 'b> {
   fn parse(&mut self) {
     while let Some(byte) = self.text.byte(self.pos) {
+      if self
+        .attribute_start
+        .is_some_and(|start| self.text.abs(self.pos) >= start)
+      {
+        // the block is left as text, along with any bracket opened before it,
+        // which nothing after it can close
+        self.pos = self.text.len();
+        break;
+      }
       match byte {
         b'\\' => self.parse_backslash(),
         b'`' => self.parse_code_span(),

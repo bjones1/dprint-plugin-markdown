@@ -1,0 +1,54 @@
+~~ heading.kind: setext, textWrap: always, lineWidth: 16 ~~
+!! should keep a leading tag together with whatever element follows it !!
+# <span> *alpha* {#id}
+
+# <img src=x> `code` {#id}
+
+# <span> [link](u) {#id}
+
+[expect]
+<span> _alpha_ {#id}
+====================
+
+<img src=x> `code` {#id}
+========================
+
+<span> [link](u) {#id}
+======================
+
+!! should not start a line with a footnote reference that the colon after it would make a definition !!
+# Alpha [^1]: {#id}
+
+[^1]: Note.
+
+[expect]
+Alpha [^1]: {#id}
+=================
+
+[^1]: Note.
+
+!! should keep the spaces within a code span in a block that a setext line of its own joins the text with !!
+Title
+{t=`a  b`}
+===
+
+[expect]
+Title {t=`a  b`}
+================
+
+!! should keep those spaces once the block is on the text's line and recognized !!
+Title {t=`a  b`}
+===
+
+[expect]
+Title {t=`a  b`}
+================
+
+!! should keep a code span's delimiters once a block joined onto the text's line is recognized !!
+`c` a
+{`a`}
+===
+
+[expect]
+`c` a {`a`}
+===========

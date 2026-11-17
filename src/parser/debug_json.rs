@@ -38,6 +38,9 @@ impl<'a> JsonWriter<'a> {
       Node::Heading(node) => {
         self.raw_property("level", &node.level.to_string());
         self.property("headingStyle", &format!("{:?}", node.style));
+        if let Some(attributes) = &node.attributes {
+          self.property("attributes", attributes.text);
+        }
       }
       Node::TextDecoration(node) => self.property("decoration", &format!("{:?}", node.kind)),
       Node::Html(node) => {

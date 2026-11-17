@@ -92,6 +92,25 @@ pub struct Heading<'a> {
   #[allow(dead_code)]
   pub style: HeadingStyle,
   pub children: &'a [Node<'a>],
+  /// The attribute block the heading ends with (ex. the `{#id}` of
+  /// `# Title {#id}`), if it ends with one. `children` still holds everything
+  /// the heading's content was read as, with an accepted block kept as opaque text.
+  pub attributes: Option<HeadingAttributes<'a>>,
+}
+
+/// An attribute block at the end of a heading, as `heading-attributes-spec.md`
+/// describes it.
+pub struct HeadingAttributes<'a> {
+  /// The block from its `{` through its `}`.
+  pub span: Span,
+  /// The block as it is written.
+  pub text: &'a str,
+  /// The heading's text before the block, read on its own.
+  pub children: &'a [Node<'a>],
+  /// The block read on its own as inline Markdown, which nothing in the text
+  /// pairs with. It decides where the block's spaces are kept and which of its
+  /// delimiter runs count when the text's delimiters are chosen.
+  pub block_children: &'a [Node<'a>],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
