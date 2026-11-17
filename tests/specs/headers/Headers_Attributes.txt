@@ -119,11 +119,21 @@ Title   {#id}
 
   ## Nested {.x}
 
-!! should keep emphasis that the block's delimiters would otherwise pair with !!
+!! should write the text's emphasis as it is written today, since the block's delimiters can't pair with it !!
 # Upgrade to *Pro**. {title="Pro*"}
 
 [expect]
-# Upgrade to *Pro**. {title="Pro*"}
+# Upgrade to _Pro_*. {title="Pro*"}
+
+!! should write the text's code spans as they are written today, since the block's backticks can't pair with them !!
+# The `run` command {data-cmd="`run`"}
+
+# `c` {`a`}
+
+[expect]
+# The `run` command {data-cmd="`run`"}
+
+# `c` {`a`}
 
 !! should still write the text's decorations with the configured character !!
 # *a* {#id}
@@ -154,7 +164,7 @@ Title   {#id}
 !! should not recognize a block whose brace is within an image, a reference link or a link within emphasis !!
 # Title ![a {b](u) c="1  2"}
 
-# *Title [a {b](u) c="1  2"*}
+# *Title [a {b](u) c="1  2" d*}
 
 # Title [a {b] c="1  2"}
 
@@ -166,7 +176,7 @@ Title   {#id}
 [expect]
 # Title ![a {b](u) c="1 2"}
 
-# _Title [a {b](u) c="1 2"_}
+# _Title [a {b](u) c="1 2" d_}
 
 # Title [a {b] c="1 2"}
 

@@ -713,9 +713,19 @@ fn gen_heading<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> PrintIte
   // they underline reads as the paragraph a heading is made of -- an html
   // comment at the start of a line is a block of its own, which nothing can
   // underline. The heading's text begins a block rather than interrupting one,
-  // so it's what a block start reads that decides this
+  // so it's what a block start reads that decides this. A backtick in an
+  // attribute block keeps a line the text starts with ``` on from being a code
+  // fence (ex. `# ``` a {t=`b`}`), which it would be again where wrapping
+  // leaves the block on a later line, so such a heading stays atx
+  let hides_code_fence = heading.attributes.as_ref().is_some_and(|attributes| {
+    matches!(
+      attributes.children.first(),
+      Some(Node::Text(text)) if text.text.starts_with("```") && crate::parser::starts_block_at_block_start(text.text)
+    )
+  });
   if heading.level < 3
     && context.configuration.heading_kind == HeadingKind::Setext
+    && !hides_code_fence
     && !heading
       .children
       .first()
@@ -779,10 +789,11 @@ fn gen_heading<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> PrintIte
 ///
 /// The block is written after one space that the line can't be broken at, so
 /// it stays on the line with the end of the text, and with spaces outside its
-/// quoted values collapsed. How the text's decorations are written is decided
-/// with the block in place, the same as it would be were the block text, so
-/// that a delimiter within the block can't pair with one the text is written
-/// with.
+/// quoted values collapsed the way `gen_attribute_block` describes. How the
+/// text's decorations and code spans are written is decided from the text
+/// alone, as it is today: the block is plain text, so nothing in it can pair
+/// with a delimiter the text is written with. The output is still read back
+/// with the block in place to check that.
 fn gen_heading_content<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> PrintItems<'a> {
   let Some(attributes) = &heading.attributes else {
     return gen_nodes(heading.children, context);
@@ -791,7 +802,7 @@ fn gen_heading_content<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> 
   // of their own for the heading's to be gathered within
   debug_assert!(context.delimiter_runs().is_none());
 
-  let runs = delimiter_runs(heading.children, context);
+  let runs = delimiter_runs(attributes.children, context);
   let needs_checking = decorations_need_checking(heading.children, &runs, context);
   let items = context.with_delimiter_runs(Some(runs), |context| gen_text_and_attribute_block(attributes, context));
   if !needs_checking {
@@ -805,7 +816,7 @@ fn gen_heading_content<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> 
     return items;
   }
   let preserved = context.with_preserved_decorations(|context| {
-    let runs = delimiter_runs(heading.children, context);
+    let runs = delimiter_runs(attributes.children, context);
     context.with_delimiter_runs(Some(runs), |context| gen_text_and_attribute_block(attributes, context))
   });
   let (preserved, rendered) = clone_items(preserved);

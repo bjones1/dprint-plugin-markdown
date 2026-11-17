@@ -88,3 +88,9 @@ delta
 epsilon
 zeta {#id}
 =================
+
+!! should keep a heading atx when a backtick in the block hides the code fence its text opens !!
+# ``` alpha {t=`b`}
+
+[expect]
+# ``` alpha {t=`b`}

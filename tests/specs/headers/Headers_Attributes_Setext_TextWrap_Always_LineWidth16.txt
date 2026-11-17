@@ -43,3 +43,12 @@ Title {t=`a  b`}
 [expect]
 Title {t=`a  b`}
 ================
+
+!! should keep a code span's delimiters once a block joined onto the text's line is recognized !!
+`c` a
+{`a`}
+===
+
+[expect]
+`c` a {`a`}
+===========
