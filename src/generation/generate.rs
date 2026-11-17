@@ -165,7 +165,7 @@ fn reads_back_decorations_with_attributes<'a>(
       new_line_text: "\n",
     },
   );
-  let read = crate::parser::parse_inline_content_with_attributes(
+  let read = crate::parser::parse_inline_content(
     &text,
     context.arena.bump(),
     context.link_labels(),
@@ -793,9 +793,7 @@ fn gen_heading_content<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> 
 
   let runs = delimiter_runs(heading.children, context);
   let needs_checking = decorations_need_checking(heading.children, &runs, context);
-  let items = context.with_delimiter_runs(Some(runs), |context| {
-    gen_text_and_attribute_block(heading, attributes, context)
-  });
+  let items = context.with_delimiter_runs(Some(runs), |context| gen_text_and_attribute_block(attributes, context));
   if !needs_checking {
     return items;
   }
@@ -808,9 +806,7 @@ fn gen_heading_content<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> 
   }
   let preserved = context.with_preserved_decorations(|context| {
     let runs = delimiter_runs(heading.children, context);
-    context.with_delimiter_runs(Some(runs), |context| {
-      gen_text_and_attribute_block(heading, attributes, context)
-    })
+    context.with_delimiter_runs(Some(runs), |context| gen_text_and_attribute_block(attributes, context))
   });
   let (preserved, rendered) = clone_items(preserved);
   if reads_back_decorations_with_attributes(heading.children, rendered, context, true) {
@@ -822,11 +818,7 @@ fn gen_heading_content<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> 
   gen_ignored_text(&context.file_text[first.span().start..last.span().end], false, context)
 }
 
-fn gen_text_and_attribute_block<'a>(
-  heading: &Heading<'a>,
-  attributes: &HeadingAttributes<'a>,
-  context: &mut Context<'a>,
-) -> PrintItems<'a> {
+fn gen_text_and_attribute_block<'a>(attributes: &HeadingAttributes<'a>, context: &mut Context<'a>) -> PrintItems<'a> {
   // the block makes the line it ends longer, so the text wraps where it didn't
   // before. The lines the text starts, which are its first and any after a
   // hard break, are marked the way a paragraph's are, so that the words they
@@ -875,19 +867,21 @@ fn gen_text_and_attribute_block<'a>(
 }
 
 /// Writes an attribute block with each run of spaces outside its quoted
-/// values written as one space, except where the run is within something the
-/// block holds that starts within it (ex. a code span), whose spaces are left
-/// as they are the same as they are where it is text.
+/// values written as one space, except where the run is within something that
+/// starts within the block (ex. a code span), whose spaces are left as they
+/// are. Today's formatter keeps the spaces within a code span, html or math,
+/// so a block that isn't recognized because it's on a line of its own keeps
+/// the same spaces once it's joined onto the text's line and recognized.
 fn gen_attribute_block<'a>(attributes: &HeadingAttributes<'a>, context: &Context<'a>) -> PrintItems<'a> {
   let mut items = PrintItems::new(context.arena);
   let text = attributes.text;
-  // Preserve the existing spacing policy inside Markdown-shaped attribute
-  // values independently of heading recognition and delimiter matching.
+  // the block is read on its own, since nothing in it pairs with the text
   let children = crate::parser::parse_inline_content(
     text,
     context.arena.bump(),
     context.link_labels(),
     context.footnote_labels(),
+    false,
   );
   let is_within_element = |position: usize| {
     children

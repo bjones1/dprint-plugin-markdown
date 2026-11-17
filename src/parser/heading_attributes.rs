@@ -16,15 +16,80 @@
 //! of them that doesn't start with `#`, `.` or `:`, and a quoted value runs to
 //! the next quote of its kind.
 
-#[cfg(test)]
 use super::ast::*;
+use super::inline::parse_inlines;
+use super::inline::parse_inlines_before_attributes;
+use super::inline::InlineContext;
+use super::source::ContentLine;
+
+/// How a heading's content reads: its inline nodes, and where in the file the
+/// attribute block it ends with starts, when it ends with one.
+///
+/// The parser reads a heading's content with this and the formatter reads back
+/// what it wrote with it, so the two always agree on whether there's a block.
+pub fn parse_heading_inlines<'a>(
+  lines: &[ContentLine<'a>],
+  context: &InlineContext<'a>,
+) -> (&'a [Node<'a>], Option<usize>) {
+  let position = lines.last().and_then(|last| {
+    let last = last.trim_end();
+    attribute_block_start(last.text).map(|start| last.start + start)
+  });
+  let Some(position) = position else {
+    return (parse_inlines(lines, context), None);
+  };
+  if context.collect_only {
+    return (&[], Some(position));
+  }
+
+  // the block is read as plain text, so nothing in it can close what the text
+  // before it opens (ex. the `*` of `# *a {x="*"}`)...
+  let children = parse_inlines_before_attributes(lines, context, Some(position));
+  // ...apart from a code span, inline html, an autolink or math, which look
+  // ahead for their end as they open and so take the `{` in when it's in the
+  // block
+  let is_plain_text = children
+    .iter()
+    .any(|child| matches!(child, Node::Text(_)) && child.span().start <= position && position < child.span().end);
+  if !is_plain_text {
+    return (parse_inlines(lines, context), None);
+  }
+  // ...and a link or image whose text runs into the block (ex.
+  // `# Title [a {b](u) c}`), which only forms where the block is read as well.
+  // A bracket that nothing closes is text, the same as it is anywhere else
+  let whole = parse_inlines(lines, context);
+  if is_within_link(whole, position) {
+    return (whole, None);
+  }
+  (children, Some(position))
+}
+
+/// Whether the position is within a link, an image or a footnote reference
+/// that starts before it, at any depth.
+fn is_within_link(nodes: &[Node], position: usize) -> bool {
+  nodes.iter().any(|node| {
+    let span = node.span();
+    span.start < position
+      && position < span.end
+      && (matches!(
+        node,
+        Node::InlineLink(_)
+          | Node::ReferenceLink(_)
+          | Node::ShortcutLink(_)
+          | Node::InlineImage(_)
+          | Node::ReferenceImage(_)
+          | Node::ShortcutImage(_)
+          | Node::FootnoteReference(_)
+      ) || is_within_link(node.children(), position))
+  })
+}
 
 /// Where the attribute block that ends a heading's last line of content starts
 /// within that line, when it ends with one.
 ///
 /// `line` is the heading's last line of content with its trailing whitespace
-/// removed. This checks only raw syntax; the caller checks whether an inline
-/// construct starting earlier consumes the opening brace.
+/// removed. This only checks what's written on the line; `parse_heading_inlines`
+/// checks whether something the text opens before it takes its `{` in.
 pub fn attribute_block_start(line: &str) -> Option<usize> {
   if !line.ends_with('}') {
     return None;

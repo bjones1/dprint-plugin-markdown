@@ -97,20 +97,12 @@ pub fn parse<'a>(source: &'a str, bump: &'a Bump) -> Result<SourceFile<'a>, Pars
 }
 
 /// Parses text as the inline content of a paragraph, resolving the references
-/// within it against the given labels.
+/// within it against the given labels, or, where `heading` is set, as the
+/// content of a heading, which may end with an attribute block.
 ///
 /// This is how the formatter reads back what it wrote a block's content as, to
 /// check that it holds the decorations the block did.
 pub fn parse_inline_content<'a>(
-  text: &'a str,
-  bump: &'a Bump,
-  link_labels: Labels<'a>,
-  footnote_labels: Labels<'a>,
-) -> &'a [Node<'a>] {
-  parse_inline_content_with_attributes(text, bump, link_labels, footnote_labels, false)
-}
-
-pub fn parse_inline_content_with_attributes<'a>(
   text: &'a str,
   bump: &'a Bump,
   link_labels: Labels<'a>,
@@ -120,15 +112,10 @@ pub fn parse_inline_content_with_attributes<'a>(
   let lines = source_lines(text, bump);
   let context = InlineContext::new(text, bump, link_labels, footnote_labels, false);
   if heading {
-    if let Some(last) = lines.last() {
-      if let Some(start) = heading_attributes::attribute_block_start(last.trim_end().text) {
-        if let Some(nodes) = inline::parse_inlines_before_attributes(lines, &context, Some(last.start + start)) {
-          return nodes;
-        }
-      }
-    }
+    heading_attributes::parse_heading_inlines(lines, &context).0
+  } else {
+    parse_inlines(lines, &context)
   }
-  parse_inlines(lines, &context)
 }
 
 /// Parses the front matter at the top of the file, returning the line the rest

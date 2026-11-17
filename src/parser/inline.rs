@@ -65,19 +65,21 @@ struct InlineScratch<'a> {
 }
 
 pub fn parse_inlines<'a>(lines: &[ContentLine<'a>], context: &InlineContext<'a>) -> &'a [Node<'a>] {
-  parse_inlines_before_attributes(lines, context, None).unwrap()
+  parse_inlines_before_attributes(lines, context, None)
 }
 
-/// A candidate suffix is opaque. Constructs starting before it may still
-/// consume its opening brace (for example a code span), allowing the caller
-/// to reject that candidate and retry ordinary parsing.
+/// Parses the lines the same as `parse_inlines`, except that everything from
+/// `attribute_start` on, which is where in the file the `{` of a heading's
+/// attribute block is, is read as plain text. Nothing in the block can then
+/// close what the text before it opens, apart from what looks ahead for its
+/// end as it opens (ex. a code span), which can still take the `{` in.
 pub fn parse_inlines_before_attributes<'a>(
   lines: &[ContentLine<'a>],
   context: &InlineContext<'a>,
   attribute_start: Option<usize>,
-) -> Option<&'a [Node<'a>]> {
+) -> &'a [Node<'a>] {
   if context.collect_only || lines.is_empty() {
-    return Some(&[]);
+    return &[];
   }
   let text = InlineText::new(lines, context.source, context.bump);
   // inline parsing never begins again while it's underway, so the buffers on
@@ -95,16 +97,11 @@ pub fn parse_inlines_before_attributes<'a>(
     pos: 0,
     pending_text_start: 0,
     attribute_start,
-    attribute_boundary_blocked: false,
     nodes: &mut scratch.nodes,
     delimiters: &mut scratch.delimiters,
   };
   parser.parse();
-  if parser.attribute_boundary_blocked {
-    None
-  } else {
-    Some(parser.finish())
-  }
+  parser.finish()
 }
 
 // ==== the flat view of a block's content ====
@@ -300,8 +297,9 @@ struct InlineParser<'a, 'b> {
   text: &'b InlineText<'a>,
   context: &'b InlineContext<'a>,
   pos: usize,
+  /// Where in the file the `{` of a heading's attribute block is, from which
+  /// on everything is plain text.
   attribute_start: Option<usize>,
-  attribute_boundary_blocked: bool,
   /// Where the text that hasn't been turned into a node yet begins.
   pending_text_start: usize,
   /// The nodes parsed so far. Emphasis leaves holes behind when it wraps the
@@ -348,15 +346,8 @@ impl<'a, 'b> InlineParser<'a, 'b> {
         .attribute_start
         .is_some_and(|start| self.text.abs(self.pos) >= start)
       {
-        // A link label opened before the candidate owns its brace. Do not
-        // inspect the candidate for a closing bracket or parse its contents.
-        if self
-          .delimiters
-          .iter()
-          .any(|delimiter| delimiter.active && matches!(delimiter.kind, DelimiterKind::Link | DelimiterKind::Image))
-        {
-          self.attribute_boundary_blocked = true;
-        }
+        // the block is left as text, along with any bracket opened before it,
+        // which nothing after it can close
         self.pos = self.text.len();
         break;
       }

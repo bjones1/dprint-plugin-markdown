@@ -142,14 +142,48 @@ Title   {#id}
 # Title {x=<b  c> .c}
 
 !! should reject a brace within a link but shield attribute emphasis delimiters !!
-# Title [a {b](u) c}
+# Title [a {b](u) c="1  2"}
 
 # *a {*}
 
 [expect]
-# Title [a {b](u) c}
+# Title [a {b](u) c="1 2"}
 
 # *a {*}
+
+!! should not recognize a block whose brace is within an image, a reference link or a link within emphasis !!
+# Title ![a {b](u) c="1  2"}
+
+# *Title [a {b](u) c="1  2"*}
+
+# Title [a {b] c="1  2"}
+
+# Title [x {b][r] c="1  2"}
+
+[a {b]: /u
+[r]: /v
+
+[expect]
+# Title ![a {b](u) c="1 2"}
+
+# _Title [a {b](u) c="1 2"_}
+
+# Title [a {b] c="1 2"}
+
+# Title [x {b][r] c="1 2"}
+
+[a {b]: /u
+[r]: /v
+
+!! should recognize a block after brackets that only form a link with a definition !!
+# Title [a {b] c="1  2"}
+
+# Title [x {b][r] c="1  2"}
+
+[expect]
+# Title [a {b] c="1  2"}
+
+# Title [x {b][r] c="1  2"}
 
 !! should not escape hashes before the block of a setext heading written as atx !!
 Title  ##   {#id}
@@ -219,3 +253,33 @@ beta {#id}
 # a <b c=" {x   y=">"}
 
 # a ~~b {x="1  2" y=~~}
+
+!! should not recognize a block whose brace is only within a code span opened before it !!
+# a `b {x="`  2"}
+
+[expect]
+# a `b {x="` 2"}
+
+!! should recognize a block after a bracket that nothing closes !!
+# Range [0, 1) {title="*open*  interval"}
+
+# a ![b {x="1  2"}
+
+# a [^1 {x="1  2"}
+
+# [a [b](u) c {x="1  2"}
+
+[expect]
+# Range [0, 1) {title="*open*  interval"}
+
+# a ![b {x="1  2"}
+
+# a [^1 {x="1  2"}
+
+# [a [b](u) c {x="1  2"}
+
+!! should keep a block after link text that ends with an escaped space !!
+# [a \ ](u) {x="1  2"}
+
+[expect]
+# [a \](u) {x="1  2"}

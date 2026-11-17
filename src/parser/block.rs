@@ -136,46 +136,30 @@ impl<'a, 'c> BlockParser<'a, 'c> {
     index + 1
   }
 
-  /// The attribute block the heading with the given content ends with, if it
-  /// ends with one, along with its text read without it.
+  /// The inline nodes a heading with the given content reads as, and the
+  /// attribute block it ends with, if it ends with one, along with its text
+  /// read without it.
   fn parse_heading_content(&self, content: &[ContentLine<'a>]) -> (&'a [Node<'a>], Option<HeadingAttributes<'a>>) {
-    if let Some(result) = self.heading_attributes(content) {
-      result
-    } else {
-      (self.parse_inlines(content), None)
-    }
-  }
+    let (children, position) = heading_attributes::parse_heading_inlines(content, self.context);
+    let attributes = position.and_then(|position| {
+      let (last, before) = content.split_last()?;
+      let last = last.trim_end();
+      let start = position - last.start;
 
-  fn heading_attributes(&self, content: &[ContentLine<'a>]) -> Option<(&'a [Node<'a>], Option<HeadingAttributes<'a>>)> {
-    let (last, before) = content.split_last()?;
-    let last = last.trim_end();
-    let start = heading_attributes::attribute_block_start(last.text)?;
-    let position = last.start + start;
-    let children = super::inline::parse_inlines_before_attributes(content, self.context, Some(position))?;
-    if !self.context.collect_only
-      && !children
-        .iter()
-        .any(|child| matches!(child, Node::Text(_)) && child.span().start <= position && position < child.span().end)
-    {
-      return None;
-    }
+      // the text is read again without the block, so that it can be written
+      // apart from it
+      let mut text_line = last;
+      text_line.text = last.text[..start].trim_end_matches(' ');
+      let mut text_lines = BumpVec::from_iter_in(before.iter().copied(), self.context.bump);
+      text_lines.push(text_line);
 
-    // Parse the heading text without allowing the candidate's delimiters to
-    // participate. The provisional parse above checks constructs such as code
-    // spans that start before the candidate and consume its opening brace.
-    let mut text_line = last;
-    text_line.text = last.text[..start].trim_end_matches(' ');
-    let mut text_lines = BumpVec::from_iter_in(before.iter().copied(), self.context.bump);
-    text_lines.push(text_line);
-
-    Some((
-      children,
       Some(HeadingAttributes {
-        span: Span::new(last.start + start, last.end()),
+        span: Span::new(position, last.end()),
         text: &last.text[start..],
         children: self.parse_inlines(&text_lines),
-      }),
-    ))
+      })
+    });
+    (children, attributes)
   }
 
   fn parse_fenced_code(&self, lines: &[ContentLine<'a>], index: usize, nodes: &mut BumpVec<'a, Node<'a>>) -> usize {

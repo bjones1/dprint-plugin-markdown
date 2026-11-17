@@ -12,3 +12,11 @@ epsilon {#id}
 =============
 
 [^1]: Note.
+
+!! should keep the block together after a bracket that nothing closes !!
+# Interval [0, 1) {#iv .note}
+
+[expect]
+Interval
+[0, 1) {#iv .note}
+==================
