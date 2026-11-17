@@ -28,6 +28,9 @@ pub struct Configuration {
   pub emphasis_kind: EmphasisKind,
   pub strong_kind: StrongKind,
   pub hard_break_kind: HardBreakKind,
+  /// Whether to write a line break after an inline `<br>` tag, so that a line
+  /// break in the rendered page is one in the source too. Off by default.
+  pub line_break_after_br: bool,
   /// The maximum number of consecutive blank lines to keep between blocks.
   pub max_blank_lines: u32,
   #[serde(rename = "heading.kind")]

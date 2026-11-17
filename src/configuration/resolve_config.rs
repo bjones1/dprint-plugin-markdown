@@ -61,6 +61,7 @@ pub fn resolve_config(
     emphasis_kind: get_value(&mut config, "emphasisKind", EmphasisKind::Underscores, &mut diagnostics),
     strong_kind: get_value(&mut config, "strongKind", StrongKind::Asterisks, &mut diagnostics),
     hard_break_kind: get_value(&mut config, "hardBreakKind", HardBreakKind::Backslash, &mut diagnostics),
+    line_break_after_br: get_value(&mut config, "lineBreakAfterBr", false, &mut diagnostics),
     max_blank_lines: get_max_blank_lines(&mut config, &mut diagnostics),
     heading_kind: get_renamed_value(
       &mut config,

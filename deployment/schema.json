@@ -224,6 +224,18 @@
         "description": "Uses an underline of `=` or `-` beneath the heading text (setext headings). Only applies to level 1 and 2 headings."
       }]
     },
+    "lineBreakAfterBr": {
+      "description": "Whether to write a line break after an inline `<br>` tag, so that a line break in the rendered page is one in the source too. The break is only written before text that begins with a letter.",
+      "type": "boolean",
+      "default": false,
+      "oneOf": [{
+        "const": true,
+        "description": "Writes a line break after an inline `<br>` tag."
+      }, {
+        "const": false,
+        "description": "Writes an inline `<br>` tag as any other inline html."
+      }]
+    },
     "hardBreakKind": {
       "description": "The style of hard line break to use.",
       "type": "string",
@@ -498,6 +510,9 @@
           "Third line"
         ]
       }
+    },
+    "lineBreakAfterBr": {
+      "$ref": "#/definitions/lineBreakAfterBr"
     },
     "maxBlankLines": {
       "description": "The maximum number of consecutive blank lines to keep between blocks.",

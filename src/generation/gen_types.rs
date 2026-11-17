@@ -208,6 +208,12 @@ pub struct Context<'a> {
   block_quote_content_starts: Vec<Option<usize>>,
   text_wrap_disabled_count: u32,
   decorations_preserved_count: u32,
+  /// How deep within the text a link is matched by the context is, where a
+  /// line break would change the label.
+  link_label_count: u32,
+  /// How deep within a block whose `<br>` tags get no line break after them the
+  /// context is.
+  br_line_breaks_off_count: u32,
   enclosing_decoration: Option<Span>,
   /// Where the text that ends an atx heading starts, when the hashes it ends
   /// with have to be escaped so that they aren't read as the heading's closing
@@ -286,6 +292,8 @@ impl<'a> Context<'a> {
       block_quote_content_starts: Vec::new(),
       text_wrap_disabled_count: 0,
       decorations_preserved_count: 0,
+      link_label_count: 0,
+      br_line_breaks_off_count: 0,
       enclosing_decoration: None,
       escaped_closing_hashes: None,
       escaped_block_starts: Vec::new(),
@@ -513,6 +521,31 @@ impl<'a> Context<'a> {
     let result = func(self);
     self.decorations_preserved_count -= 1;
     result
+  }
+
+  /// Writes out the text a link is matched by, which a line break written after
+  /// a `<br>` would change.
+  pub fn with_link_label<T>(&mut self, func: impl FnOnce(&mut Context<'a>) -> T) -> T {
+    self.link_label_count += 1;
+    let result = func(self);
+    self.link_label_count -= 1;
+    result
+  }
+
+  pub fn is_in_link_label(&self) -> bool {
+    self.link_label_count > 0
+  }
+
+  /// Writes out a block whose `<br>` tags get no line break after them.
+  pub fn with_br_line_breaks_off<T>(&mut self, func: impl FnOnce(&mut Context<'a>) -> T) -> T {
+    self.br_line_breaks_off_count += 1;
+    let result = func(self);
+    self.br_line_breaks_off_count -= 1;
+    result
+  }
+
+  pub fn are_br_line_breaks_off(&self) -> bool {
+    self.br_line_breaks_off_count > 0
   }
 
   /// Runs within the content of a text decoration, so that the ones nested in

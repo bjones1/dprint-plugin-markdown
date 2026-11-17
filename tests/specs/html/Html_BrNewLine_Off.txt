@@ -1,0 +1,6 @@
+~~ lineBreakAfterBr: false ~~
+!! spec example 29 !!
+a<br>b
+
+[expect]
+a<br>b

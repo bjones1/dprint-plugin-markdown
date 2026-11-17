@@ -49,4 +49,5 @@ unicode-width = "0.2"
 [dev-dependencies]
 dprint-development = "0.12.1"
 file_test_runner = "0.12.1"
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 serde_json = { version = "1.0" }

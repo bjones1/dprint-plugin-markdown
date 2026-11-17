@@ -370,7 +370,13 @@ fn gen_nodes_within_breaks<'a>(nodes: &[Node<'a>], context: &mut Context<'a>) ->
   let mut items = PrintItems::new(context.arena);
 
   let mut last_node: Option<&Node> = None;
-  let mut node_iterator = nodes.iter().filter(|n| !matches!(n, Node::SoftBreak(_)));
+  let mut node_iterator = nodes.iter().filter(|n| !matches!(n, Node::SoftBreak(_))).peekable();
+  // where the `<br>` tag that gets a line break after it starts, decided once
+  // for the space before the tag and the break after it
+  let mut tag_with_break: Option<usize> = None;
+  // where the `<br>` tag that begins a line starts, which keeps the word after
+  // it beside it
+  let mut tag_beginning_line: Option<usize> = None;
 
   while let Some(mut node) = node_iterator.next() {
     // handle alternate lists
@@ -388,6 +394,23 @@ fn gen_nodes_within_breaks<'a>(nodes: &[Node<'a>], context: &mut Context<'a>) ->
         }
       }
     }
+
+    // a tag begins a line where it begins its paragraph, follows a hard break,
+    // or has a line ending between it and the node before it. A line holding
+    // only the tag at the start of a block is an html block, so it gets no line
+    // break after it, and the word after it is kept beside it
+    let node_begins_line = context.configuration.line_break_after_br
+      && is_break_tag(node)
+      && (context.is_line_start(node.span().start)
+        || last_node.is_some_and(|last| context.get_new_lines_in_range(last.span().end, node.span().start) > 0));
+    // a tag that gets a line break after it is kept beside what's before it, so
+    // that wrapping can't move it to the start of a line, where formatting the
+    // output again would read it as beginning one
+    let breaks_after_node = is_break_tag(node)
+      && !node_begins_line
+      && node_iterator
+        .peek()
+        .is_some_and(|next| breaks_line_after_tag(next, context));
 
     // todo: this area needs to be thought out more
     if let Some(last_node) = last_node {
@@ -456,6 +479,7 @@ fn gen_nodes_within_breaks<'a>(nodes: &[Node<'a>], context: &mut Context<'a>) ->
           | Node::ReferenceImage(_)
           | Node::ShortcutImage(_)
           | Node::InlineMath(_) => {
+            let mut separator = PrintItems::new(context.arena);
             let between_range = (last_node.span().end, node.span().start);
             let new_line_count = context.get_new_lines_in_range(between_range.0, between_range.1);
 
@@ -464,7 +488,7 @@ fn gen_nodes_within_breaks<'a>(nodes: &[Node<'a>], context: &mut Context<'a>) ->
               // > [!NOTE]
               // > Some note.
               if is_callout_node(last_node, context) && !context.is_text_wrap_disabled() {
-                items.push_signal(Signal::NewLine); // force a newline
+                separator.push_signal(Signal::NewLine); // force a newline
               } else if starts_block_at_line_start(node, context)
                 || text_can_be_wrapped_away(context) && node.starts_with_list_word()
               {
@@ -472,11 +496,11 @@ fn gen_nodes_within_breaks<'a>(nodes: &[Node<'a>], context: &mut Context<'a>) ->
                 // a line without changing what it means. Neither can a list
                 // marker where text is wrapped, since what follows it on the
                 // line below can be drawn up beside it
-                items.push_space();
+                separator.push_space();
               } else if matches!(node, Node::Html(_)) {
-                items.push_signal(Signal::NewLine);
+                separator.push_signal(Signal::NewLine);
               } else if context.drops_break_before(node.span().start) {
-                items.extend(get_unspaced_script_newline_wrapping(
+                separator.extend(get_unspaced_script_newline_wrapping(
                   context,
                   sentence_ends_between(last_node, node, context),
                 ));
@@ -484,16 +508,16 @@ fn gen_nodes_within_breaks<'a>(nodes: &[Node<'a>], context: &mut Context<'a>) ->
                 // the nodes can't be written beside each other, but the break
                 // between them is left alone all the same rather than written
                 // as a space that would be rendered in every browser
-                items.push_signal(Signal::NewLine);
+                separator.push_signal(Signal::NewLine);
               } else {
-                items.extend(get_newline_wrapping_based_on_config(
+                separator.extend(get_newline_wrapping_based_on_config(
                   context,
                   sentence_ends_between(last_node, node, context),
                 ));
               }
             } else if new_line_count > 1 {
               let blank_lines = std::cmp::min(new_line_count - 1, context.configuration.max_blank_lines);
-              items.extend(get_blank_lines(context.arena, blank_lines));
+              separator.extend(get_blank_lines(context.arena, blank_lines));
             } else {
               let needs_space = if let Node::Html(_) = last_node {
                 node.has_preceding_space(context.file_text)
@@ -515,22 +539,35 @@ fn gen_nodes_within_breaks<'a>(nodes: &[Node<'a>], context: &mut Context<'a>) ->
                   // a space between two characters of a script written without
                   // spaces is rendered, so it's kept as one rather than being
                   // written as the line break that would read as nothing
-                  items.push_space();
+                  separator.push_space();
                 } else if starts_block_at_line_start(node, context) || node.starts_with_list_word() {
                   // the node would start a block of its own at the start of a
                   // line, so it has to be kept off one
-                  items.push_space();
+                  separator.push_space();
                 } else if ends_with_literal_backslash(last_node) {
                   // the node before can't end a line, where its backslash
                   // would be read as a hard break
-                  items.push_space();
+                  separator.push_space();
+                } else if breaks_after_node || tag_beginning_line == Some(last_node.span().start) {
+                  separator.push_space();
                 } else {
-                  items.extend(get_space_or_newline_based_on_config(
+                  separator.extend(get_space_or_newline_based_on_config(
                     context,
                     sentence_ends_between(last_node, node, context),
                   ));
                 }
               }
+            }
+            if tag_with_break == Some(last_node.span().start) {
+              // the separator written today stays where no line may be broken
+              items.push_condition(if_true_or(
+                "lineBreakAfterBrOrSeparatorIfNewlinesDisabled",
+                condition_resolvers::is_forcing_no_newlines(),
+                separator,
+                Signal::NewLine.into_print_items(context.arena),
+              ));
+            } else {
+              items.extend(separator);
             }
           }
           Node::LinkReference(_) => {
@@ -592,8 +629,14 @@ fn gen_nodes_within_breaks<'a>(nodes: &[Node<'a>], context: &mut Context<'a>) ->
     if matches!(node, Node::HardBreak(_)) && last_node.is_some_and(ends_with_bare_url) {
       context.mark_after_bare_url();
     }
-    items.extend(generate(node, context));
+    if keeps_br_lines(node, node_iterator.peek().copied(), context) {
+      items.extend(context.with_br_line_breaks_off(|context| generate(node, context)));
+    } else {
+      items.extend(generate(node, context));
+    }
     last_node = Some(node);
+    tag_with_break = breaks_after_node.then(|| node.span().start);
+    tag_beginning_line = node_begins_line.then(|| node.span().start);
 
     // check for ignore comment
     if let Node::Html(html) = node {
@@ -690,6 +733,124 @@ fn paragraph_start<'a>(node: &'a Node<'a>) -> Option<&'a Node<'a>> {
     Node::Paragraph(paragraph) => paragraph.children.first(),
     _ => None,
   }
+}
+
+/// Whether the node is an inline `<br>` tag, in any letter case, with or without
+/// attributes or a slash before its `>`.
+fn is_break_tag(node: &Node) -> bool {
+  let Node::Html(html) = node else {
+    return false;
+  };
+  !html.is_block
+    && html.text.starts_with('<')
+    && html.text.get(1..3).is_some_and(|name| name.eq_ignore_ascii_case("br"))
+    && html.text[3..].starts_with(|c: char| c.is_ascii_whitespace() || c == '/' || c == '>')
+}
+
+/// Whether `lineBreakAfterBr` writes a line break between a `<br>` tag and the
+/// node after it. That's only where the node is text beginning with a letter,
+/// which nothing that starts a block at the start of a line does, and where
+/// moving it there can't change the document otherwise.
+fn breaks_line_after_tag(next: &Node, context: &Context) -> bool {
+  let Node::Text(text) = next else {
+    return false;
+  };
+  // the caller checks that the node before `next` is a break tag
+  context.configuration.line_break_after_br
+    && text.text.starts_with(char::is_alphabetic)
+    // GitHub links `www.` at the start of a line, but not after the tag's `>`
+    && !text.text.starts_with("www.")
+    // a line break would change the label the link is matched by
+    && !context.is_in_link_label()
+    && !context.are_br_line_breaks_off()
+}
+
+/// Whether the `<br>` tags of a block get no line break after them: in a
+/// heading, whose text its anchor is made from; in a paragraph that begins
+/// like a link reference definition, which ending a line could complete; in a
+/// paragraph holding a delimiter cell without a `|`, or followed by a block
+/// that could begin with a delimiter row, which a new line above could make a
+/// table's header; and in a paragraph holding a tag whose content shows its
+/// line breaks.
+fn keeps_br_lines(node: &Node, next: Option<&Node>, context: &Context) -> bool {
+  context.configuration.line_break_after_br
+    && match node {
+      Node::Heading(_) => true,
+      Node::Paragraph(paragraph) => {
+        let text = paragraph.span.text(context.file_text);
+        (text.starts_with('[') && text.contains("]:"))
+          // a hard break the formatter writes as `\\` sticks to the word before it
+          || text.split_whitespace().map(|word| word.trim_end_matches('\\')).any(is_bare_delimiter_cell)
+          || holds_preformatted_tag(node.children())
+          || next.is_some_and(|next| may_begin_with_delimiter_row(next, context))
+      }
+      _ => false,
+    }
+}
+
+/// Whether the word is a table delimiter cell with a colon and no `|`
+/// (`:-:`, `-:`, `:--`), which GitHub reads as a delimiter row on a line of its
+/// own, so that a new line just above it could become a table's header.
+fn is_bare_delimiter_cell(word: &str) -> bool {
+  let dashes = word.strip_prefix(':').unwrap_or(word);
+  let dashes = dashes.strip_suffix(':').unwrap_or(dashes);
+  dashes.len() < word.len() && !dashes.is_empty() && dashes.bytes().all(|b| b == b'-')
+}
+
+/// Whether the node is a bullet list whose first item could begin with a
+/// table's delimiter row, so that a new line just above it could become the
+/// table's header: the item begins with a paragraph starting with `|`, as a
+/// delimiter row written as a list item (`- | -`) does, or with a table or
+/// list, which the formatter may write that way. Reading the parsed item, not
+/// its source line, gives the same answer whatever the formatter does to the
+/// marker, a block quote's `>` or the item's line breaks.
+fn may_begin_with_delimiter_row(node: &Node, context: &Context) -> bool {
+  let Node::List(list) = node else {
+    return false;
+  };
+  if list.start_index.is_some() {
+    return false;
+  }
+  let first_child = match list.children.first() {
+    Some(Node::Item(item)) => item.children.first(),
+    _ => None,
+  };
+  match first_child {
+    Some(Node::Table(_) | Node::List(_)) => true,
+    // the paragraph's text starts after the marker and any `>` prefixes
+    Some(Node::Paragraph(paragraph)) => paragraph.span.text(context.file_text).starts_with('|'),
+    _ => false,
+  }
+}
+
+/// Whether the nodes hold an inline tag of an element whose content shows its
+/// line breaks, such as `<pre>`, or that a line break would break, such as
+/// `<script>`.
+fn holds_preformatted_tag(nodes: &[Node]) -> bool {
+  nodes.iter().any(|node| match node {
+    Node::Html(html) => {
+      let name = html.text.trim_start_matches(['<', '/']);
+      [
+        "pre",
+        "listing",
+        "xmp",
+        "plaintext",
+        "textarea",
+        "script",
+        "style",
+        "code",
+        "tt",
+      ]
+      .iter()
+      .any(|tag| {
+        name
+          .get(..tag.len())
+          .is_some_and(|start| start.eq_ignore_ascii_case(tag))
+          && !name[tag.len()..].starts_with(|c: char| c.is_ascii_alphanumeric() || c == '-')
+      })
+    }
+    _ => holds_preformatted_tag(node.children()),
+  })
 }
 
 /// Whether the node is a tag that would start an html block at the start of a
@@ -2526,7 +2687,7 @@ fn gen_reference_link<'a>(link: &ReferenceLink<'a>, context: &mut Context<'a>) -
 /// written where that text is the name the link is matched by.
 fn gen_link_text<'a>(children: &[Node<'a>], is_the_name: bool, context: &mut Context<'a>) -> PrintItems<'a> {
   if is_the_name {
-    context.with_preserved_decorations(|context| gen_nodes(children, context))
+    context.with_link_label(|context| context.with_preserved_decorations(|context| gen_nodes(children, context)))
   } else {
     gen_nodes(children, context)
   }
@@ -2802,11 +2963,25 @@ fn gen_item<'a>(item: &Item<'a>, context: &mut Context<'a>) -> PrintItems<'a> {
     }
   }
 
-  items.extend(gen_task_list_marker_children(
-    item.children,
-    item.marker.as_ref(),
-    context,
-  ));
+  // an item's lists follow its content directly, so one beginning with what
+  // looks like a delimiter row could make the line above it a table's header
+  let sub_list_row = context.configuration.line_break_after_br
+    && item
+      .sub_lists
+      .first()
+      .is_some_and(|list| may_begin_with_delimiter_row(list, context));
+  if sub_list_row {
+    items
+      .extend(context.with_br_line_breaks_off(|context| {
+        gen_task_list_marker_children(item.children, item.marker.as_ref(), context)
+      }));
+  } else {
+    items.extend(gen_task_list_marker_children(
+      item.children,
+      item.marker.as_ref(),
+      context,
+    ));
+  }
 
   if let Some(first_sub_list) = item.sub_lists.first() {
     // an item with nothing of its own has its lists written beside its marker.
@@ -2914,10 +3089,19 @@ fn gen_task_list_marker_children<'a>(
       ) || context.has_leading_blankline(c.span().start)
     })
     .unwrap_or(children.len());
-  items.extend(with_indent_times(
-    gen_nodes(&children[..indent_child_index_end], context),
-    marker_indent,
-  ));
+  // the children before a list are written apart from it, so a list there
+  // that could begin with a delimiter row is checked for here
+  let first_children = &children[..indent_child_index_end];
+  let first_items = if context.configuration.line_break_after_br
+    && children
+      .get(indent_child_index_end)
+      .is_some_and(|next| may_begin_with_delimiter_row(next, context))
+  {
+    context.with_br_line_breaks_off(|context| gen_nodes(first_children, context))
+  } else {
+    gen_nodes(first_children, context)
+  };
+  items.extend(with_indent_times(first_items, marker_indent));
   context.raw_indent_level -= marker_indent;
 
   // insert the remaining children without indent
