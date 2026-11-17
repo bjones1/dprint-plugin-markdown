@@ -107,6 +107,10 @@ pub struct HeadingAttributes<'a> {
   pub text: &'a str,
   /// The heading's text before the block, read on its own.
   pub children: &'a [Node<'a>],
+  /// The block read on its own as inline Markdown, which nothing in the text
+  /// pairs with. It decides where the block's spaces are kept and which of its
+  /// delimiter runs count when the text's delimiters are chosen.
+  pub block_children: &'a [Node<'a>],
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

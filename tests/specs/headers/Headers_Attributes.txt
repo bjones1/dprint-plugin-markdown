@@ -119,13 +119,13 @@ Title   {#id}
 
   ## Nested {.x}
 
-!! should write the text's emphasis as it is written today, since the block's delimiters can't pair with it !!
+!! should keep emphasis that the block's delimiters would otherwise pair with !!
 # Upgrade to *Pro**. {title="Pro*"}
 
 [expect]
-# Upgrade to _Pro_*. {title="Pro*"}
+# Upgrade to *Pro**. {title="Pro*"}
 
-!! should write the text's code spans as they are written today, since the block's backticks can't pair with them !!
+!! should not count the backticks of a code span within the block when writing the text's code spans !!
 # The `run` command {data-cmd="`run`"}
 
 # `c` {`a`}
@@ -134,6 +134,16 @@ Title   {#id}
 # The `run` command {data-cmd="`run`"}
 
 # `c` {`a`}
+
+!! should count a lone backtick in the block when writing the text's code spans, as when the block is text !!
+# Run `make` {title="press ` to open"}
+
+# foo******bar*********baz `c` {t=`}
+
+[expect]
+# Run ``make`` {title="press ` to open"}
+
+# foo******bar*********baz ``c`` {t=`}
 
 !! should still write the text's decorations with the configured character !!
 # *a* {#id}
@@ -293,3 +303,27 @@ beta {#id}
 
 [expect]
 # [a \](u) {x="1  2"}
+
+!! should keep the text's code spans once a block with a lone backtick is joined onto its line and recognized !!
+Run `make`
+{title="press ` to open"}
+===
+
+[expect]
+# Run ``make`` {title="press ` to open"}
+
+!! should keep the text's emphasis once a block with an emphasis run is joined onto its line and recognized !!
+*a 1.*** <div>
+{x=*a}
+===
+
+[expect]
+# *a 1.*** <div> {x=*a}
+
+!! should keep a code span's delimiters once a block with a code span is joined onto its line and recognized !!
+`c` a
+{`a`}
+===
+
+[expect]
+# `c` a {`a`}

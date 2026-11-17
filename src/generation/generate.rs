@@ -213,6 +213,18 @@ fn push_written_content(nodes: &[Node], content: &mut String) {
   }
 }
 
+/// The runs of delimiter characters within a heading's text and the attribute
+/// block it ends with, which is read on its own, so that a run in the block
+/// that would be text were the block not recognized counts the same as it
+/// would then (ex. the lone backtick of `{title="a ` b"}`), while one within a
+/// code span of the block's own doesn't.
+fn heading_delimiter_runs(attributes: &HeadingAttributes, context: &Context) -> DelimiterRuns {
+  let mut runs = DelimiterRuns::default();
+  push_delimiter_runs(attributes.children, context, &mut runs);
+  push_delimiter_runs(attributes.block_children, context, &mut runs);
+  runs
+}
+
 /// The runs of delimiter characters within the content of a block, which
 /// decide whether a text decoration within it can be written with a character
 /// other than the one it was written with. See [`decoration_delimiter`].
@@ -790,10 +802,10 @@ fn gen_heading<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> PrintIte
 /// The block is written after one space that the line can't be broken at, so
 /// it stays on the line with the end of the text, and with spaces outside its
 /// quoted values collapsed the way `gen_attribute_block` describes. How the
-/// text's decorations and code spans are written is decided from the text
-/// alone, as it is today: the block is plain text, so nothing in it can pair
-/// with a delimiter the text is written with. The output is still read back
-/// with the block in place to check that.
+/// text's decorations and code spans are written is decided with the block in
+/// place, read on its own, so that the text is written the way it is today
+/// whether or not the block is recognized. The output is read back with the
+/// block in place to check that.
 fn gen_heading_content<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> PrintItems<'a> {
   let Some(attributes) = &heading.attributes else {
     return gen_nodes(heading.children, context);
@@ -802,7 +814,7 @@ fn gen_heading_content<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> 
   // of their own for the heading's to be gathered within
   debug_assert!(context.delimiter_runs().is_none());
 
-  let runs = delimiter_runs(attributes.children, context);
+  let runs = heading_delimiter_runs(attributes, context);
   let needs_checking = decorations_need_checking(heading.children, &runs, context);
   let items = context.with_delimiter_runs(Some(runs), |context| gen_text_and_attribute_block(attributes, context));
   if !needs_checking {
@@ -816,7 +828,7 @@ fn gen_heading_content<'a>(heading: &Heading<'a>, context: &mut Context<'a>) -> 
     return items;
   }
   let preserved = context.with_preserved_decorations(|context| {
-    let runs = delimiter_runs(attributes.children, context);
+    let runs = heading_delimiter_runs(attributes, context);
     context.with_delimiter_runs(Some(runs), |context| gen_text_and_attribute_block(attributes, context))
   });
   let (preserved, rendered) = clone_items(preserved);
@@ -886,16 +898,9 @@ fn gen_text_and_attribute_block<'a>(attributes: &HeadingAttributes<'a>, context:
 fn gen_attribute_block<'a>(attributes: &HeadingAttributes<'a>, context: &Context<'a>) -> PrintItems<'a> {
   let mut items = PrintItems::new(context.arena);
   let text = attributes.text;
-  // the block is read on its own, since nothing in it pairs with the text
-  let children = crate::parser::parse_inline_content(
-    text,
-    context.arena.bump(),
-    context.link_labels(),
-    context.footnote_labels(),
-    false,
-  );
   let is_within_element = |position: usize| {
-    children
+    attributes
+      .block_children
       .iter()
       .any(|child| !matches!(child, Node::Text(_)) && child.span().start <= position && position < child.span().end)
   };
@@ -904,7 +909,7 @@ fn gen_attribute_block<'a>(attributes: &HeadingAttributes<'a>, context: &Context
       items.extend(ir_helpers::gen_from_raw_string(context.arena, &text[start..end]))
     }
     AttributeBlockPiece::Spaces(start, end) => {
-      if is_within_element(start) {
+      if is_within_element(attributes.span.start + start) {
         items.extend(ir_helpers::gen_from_raw_string(context.arena, &text[start..end]));
       } else {
         items.push_space();

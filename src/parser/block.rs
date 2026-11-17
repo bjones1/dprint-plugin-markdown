@@ -153,10 +153,19 @@ impl<'a, 'c> BlockParser<'a, 'c> {
       let mut text_lines = BumpVec::from_iter_in(before.iter().copied(), self.context.bump);
       text_lines.push(text_line);
 
+      let block_line = ContentLine {
+        start: position,
+        text: &last.text[start..],
+        virtual_spaces: 0,
+        column: last.column + start,
+        is_lazy: last.is_lazy,
+      };
+
       Some(HeadingAttributes {
         span: Span::new(position, last.end()),
-        text: &last.text[start..],
+        text: block_line.text,
         children: self.parse_inlines(&text_lines),
+        block_children: self.parse_inlines(&[block_line]),
       })
     });
     (children, attributes)
