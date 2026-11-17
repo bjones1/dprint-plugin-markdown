@@ -159,6 +159,20 @@ Summarized output on commit `f0d4544`:
 - `cargo build --locked`: finished, exit code 0.
 - `cargo test --locked`: exit code 0; 160 unit tests, 10 CommonMark checks, 1 corpus check, 8 HTML parser tests, 2 nesting tests, 9 newline tests, 39 parser spec tests, 192 formatter spec tests, and 2 doc tests passed; 0 failed.
 
+Follow-up check with OpenAI Codex on the PR branch at commit `3b218ad` (the
+source code matches PR head `114d770`; this commit only updates `submission.md`):
+
+- Environment: Windows 11 Pro 10.0.26200, x64; rustc 1.98.0
+  (`88d9e12ae`) and cargo 1.98.0 (`797e8a9bc`), pinned by
+  `rust-toolchain.toml`.
+- `cargo build --locked`: completed, exit code 0. MSVC emitted a non-fatal
+  `linker_messages` warning while writing the DLL import library and export
+  file.
+- `cargo test --locked`: exit code 0; 160 unit tests, 10 CommonMark checks,
+  1 corpus check, 8 HTML parser tests, 2 nesting tests, 9 newline tests,
+  40 parser spec tests, 194 formatter spec tests, and 2 doc tests passed;
+  0 failed.
+
 #### Specification review rounds
 
 | Round | Findings | Main changes made |
@@ -497,35 +511,45 @@ GitHub userid: aarginbekov
 
 #### Contributions
 
-*
-To be added
-*
+With OpenAI Codex, reviewed the instructor-revised specification and implementation against the fixtures, ran the locked build and test suite in this clone, and completed specification round 14 and implementation rounds 5–6.
 
 #### Specification review rounds
 
-*
-Table showing spec review rounds
-*
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| 13 | 0 | Compared the concise formatter-focused spec with the parser/generator changes and acceptance fixtures; found no concrete corrections to make. |
+| 14 | 1 | Made explicit that pulldown-cmark 0.13 reads `^^a^^` as one superscript, and pointed to the standalone formatter test, directly answering the instructor's `^^` question. |
 
 #### Last specification review
 
-*
-LLM and prompt used
-LLM output, possibly with strikethrough
-*
+LLM: OpenAI Codex, GPT-6.
+
+Prompt:
+
+> Review only `superscript-spec.md` in the current PR against the instructor's six inline comments and overall review. Check especially that it distinguishes the formatter from the renderer, reuses the existing data structures and parser, avoids unnecessary parser/configuration scope, and explains why `^^` is retained. Confirm that the explanation matches pulldown-cmark 0.13 and points to a test. Report only unresolved concrete comments or factual/test gaps, with the smallest correction; do not propose broad rewrites.
+
+Output:
+
+> One clarity finding: although the syntax table defined `^^a^^` and the standalone formatter fixture tested it, the spec did not explicitly say that pulldown-cmark 0.13 reads it as one superscript. I added that one-sentence explanation beside the Syntax table and linked it to the standalone fixture. The other instructor comments are reflected in the formatter-versus-renderer distinction, the existing `TextDecorationKind` and parser paths, and the narrowed scope; I found no other unresolved comment or concrete gap.
 
 #### Implementation review rounds
 
-*
-Table showing implementation review rounds
-*
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| 5 | 0 | Statically checked the changed parser and generator paths against the stated syntax and acceptance fixtures; found no concrete defect or missing case. |
+| 6 | 0 | Rechecked the changed parser, generator and fixtures after a successful locked build and full test run; found no additional issue. |
 
 #### Last Implementation review
 
-*
-LLM and prompt used
-LLM output, possibly with strikethrough
-*
+LLM: OpenAI Codex, GPT-6.
+
+Prompt:
+
+> Review the superscript changes in `src/parser/ast.rs`, `src/parser/inline.rs`, `src/generation/generate.rs`, and their parser/formatter fixtures against the instructor's six PR comments and `superscript-spec.md`. Check that the implementation reuses `TextDecoration`, that delimiter parsing and generation preserve the documented one- and two-caret forms, and that the fixtures cover those behaviors. The current locked build and complete `cargo test --locked` output are available in this review. Report only reproducible correctness defects or a concrete missing regression test; do not edit files or suggest broad rewrites. State what you verified and whether the tests passed.
+
+Output:
+
+> No concrete implementation defect or missing regression case was found. The patch adds `Superscript` to the existing `TextDecorationKind`; parsing uses the existing delimiter path with the bracket exception; generation preserves single- and double-caret forms and retains the hard-break safeguards. The parser fixtures cover the syntax examples, and formatter fixtures cover `^^a^^` alone, hard breaks, escaped brackets, crossing delimiters, and the setext/CJK case. `cargo build --locked` completed with exit code 0; `cargo test --locked` passed all 426 tests across the unit, integration, parser-spec, formatter-spec, and documentation suites. No further implementation change is needed.
 
 ### Aslan Tasmagambetov
 

@@ -74,6 +74,9 @@ So:
 | `[^1] b^`       | text (the first `^` is a footnote marker)   |
 | `\[^1] b^`      | text `[`, then superscript `1] b`           |
 
+pulldown-cmark 0.13 reads `^^a^^` as one superscript around `a`; the standalone
+formatter fixture checks that formatting preserves this form.
+
 `x^2^` is a superscript in Pandoc and in the unreleased pulldown-cmark
 `master`, but not in 0.13, which this follows.
 
