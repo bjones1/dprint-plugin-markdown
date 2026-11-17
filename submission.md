@@ -124,6 +124,8 @@ Prompt: "Verify that you can build and run the project in the current git repo."
   and 2 documentation tests passed, with no failures shown.
 - Execution was verified through the test suite; the plugin was
   not separately tested inside dprint.
+- The supplied output did not record the Windows version/build, architecture,
+  or rustc version.
 
 #### Specification review rounds
 
@@ -557,33 +559,25 @@ GitHub userid: tasma-07
 
 #### Contributions
 
-*
-To be added
-*
+Aslan's draft contribution is recorded above; his final-submission contribution details have not yet been provided.
 
 #### Specification review rounds
 
-*
-Table showing spec review rounds
-*
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| Pending | — | Aslan's final-submission specification review rounds and changes have not yet been reported. |
 
 #### Last specification review
 
-*
-LLM and prompt used
-LLM output, possibly with strikethrough
-*
+Pending: Aslan must add the model, prompt, and output from his final specification review.
 
 #### Implementation review rounds
 
-*
-Table showing implementation review rounds
-*
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| Pending | — | Aslan's implementation review rounds and changes have not yet been reported. |
 
 #### Last Implementation review
 
-*
-LLM and prompt used
-LLM output, possibly with strikethrough
-*
+Pending: Aslan must add the model, prompt, and output from his final implementation review.
 
