@@ -130,10 +130,14 @@ Title   {#id}
 
 # `c` {`a`}
 
+# foo******bar*********baz `c` {`a`}
+
 [expect]
 # The `run` command {data-cmd="`run`"}
 
 # `c` {`a`}
+
+# foo******bar*********baz `c` {`a`}
 
 !! should count a lone backtick in the block when writing the text's code spans, as when the block is text !!
 # Run `make` {title="press ` to open"}
@@ -327,3 +331,17 @@ Run `make`
 
 [expect]
 # `c` a {`a`}
+
+!! should keep the spaces within a reference link in the block only where its label is defined !!
+# Title {x=[a   b][r]   .c}
+
+# Title {x=[c   d][s]   .c}
+
+[r]: /v
+
+[expect]
+# Title {x=[a   b][r] .c}
+
+# Title {x=[c d][s] .c}
+
+[r]: /v
