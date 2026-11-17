@@ -137,141 +137,138 @@ The rules that round 6 added keep two words together on lines other than the las
 | 8 | 3 | Collapsing every space in the block made a block on its own Setext line change on the second pass once joined, so the kept-spaces exception was restored in the code and the spec; added tests for images, reference links, links within emphasis and definitions. Not applied: a link label that only matches its definition after emphasis is rewritten |
 | 9 | 3 | A heading whose text opens a backtick code fence stays ATX when a backtick in its block hides the fence; fixed a test whose block was invalid. Not applied: a `+*a` / `{k=a*}` heading that switches from ATX to Setext once its block is joined, which needs emphasis pairing across lines |
 | 10 | 2 | The block is read on its own when the heading is parsed and its delimiter runs count when the text's delimiters are chosen, so the text is written as today whether or not the block is recognized (a lone backtick in a joined block had changed `` `make` ``); added tests for both join directions and the preserved-decorations retry |
+| 11 | 2 | Trivial, no behavior bugs, panics or unstable output: added a test with a code span in the block for the preserved-decorations retry and one showing that the kept spaces depend on the document's link definitions |
 
 ### Last implementation review
 
-Prompting Claude Opus 5.5 (a Claude Code subagent, default effort) with the prompt below produced the following output. Both findings were applied, so nothing is struck through.
+Prompting Claude Opus 5.5 (a Claude Code subagent, default effort) with the prompt below produced the following output; strikethrough indicates LLM output that I deemed incorrect or irrelevant. Both findings were missing tests and were added, so nothing is struck through. `[scratchpad]` stands for the session's temporary folder.
 
-> Review the implementation of heading-attributes-spec.md in the git repo at /Users/fine/Desktop/ASP-assignment/dprint-plugin-markdown (a dprint Markdown formatter plugin with its own Markdown parser in src/). The implementation is `git diff 631ceea -- src tests` on the current branch. Check that it does what the spec says, and look for bugs, panics, non-idempotent output, behavior that differs from the spec, and gaps in the tests. Treat the spec as correct; don't review the spec itself. [Instructions for using the Rust toolchain and a small formatting CLI in the scratchpad.] Keep the review to about 30 minutes of work: read the code and try targeted inputs rather than running large fuzzing campaigns. Write numbered findings to /Users/fine/Desktop/ASP-assignment/work/impl-review/round-06.md, each with a one-line title, a severity (high/medium/low), a short explanation and, where possible, an input that shows the problem with its actual and expected output. Do not edit any file in the repo. End your reply with the number of findings and a one-line list of their titles.
+> Review the implementation of heading-attributes-spec.md in the git repo at /Users/fine/Desktop/ASP-assignment/dprint-plugin-markdown (a dprint Markdown formatter plugin with its own Markdown parser in src/). The implementation is `git diff 631ceea -- src tests` on the current branch. Check that it does what the spec says, and look for bugs, panics, non-idempotent output, behavior that differs from the spec, and gaps in the tests. Treat the spec as correct; don't review the spec itself. This round focuses on commit 2ba1a40, which fixes implementation review round 10 (/Users/fine/Desktop/ASP-assignment/work/impl-review/round-10.md): the block is now read on its own when the heading is parsed (`HeadingAttributes::block_children`), its delimiter runs count when the text's delimiters are chosen, and the same reading decides where the block's spaces are kept. /Users/fine/Desktop/ASP-assignment/work/impl-review/log.md lists what earlier rounds changed and what was deliberately not applied; don't raise those again unless the fix is wrong or incomplete.
+>
+> Tools (all outside the repo; don't install anything else):
+> - Rust 1.98.0: run `export S=[scratchpad] RUSTUP_HOME=$S/rust/rustup CARGO_HOME=$S/rust/cargo PATH=$S/rust/cargo/bin:$PATH` first. Use `CARGO_TARGET_DIR=$S/target` for `cargo test` or `cargo clippy --all-targets` in the repo.
+> - `$S/fmtcli/target/release/fmtcli '<config json>' < input.md` formats stdin with the current repo code, already built. It prints the output, and if a second pass differs it prints `UNSTABLE` to stderr and exits 2. Example config: `'{"heading.kind":"setext","textWrap":"always","lineWidth":12}'`. Don't rebuild it.
+> - `$S/oldcli/target/release/oldcli` is the same CLI built from 631ceea, the code before the feature, for comparing with today's behavior.
+> - Put any scratch files in `$S/ir11/`.
+>
+> Keep the review to about 15 minutes of work: read the code and try targeted inputs rather than running large fuzzing campaigns. Write numbered findings to /Users/fine/Desktop/ASP-assignment/work/impl-review/round-11.md, each with a one-line title, a severity (high/medium/low), a short explanation and, where possible, an input that shows the problem with its actual and expected output. Do not edit any file in the repo. End your reply with the number of findings and a one-line list of their titles.
 
-#### Heading attributes implementation review, round 6
+#### Heading attributes implementation review, round 11
 
-Scope: `git diff 631ceea -- src tests` on branch `heading-attributes` (commits 910ae93 through 8f13512), checked against `heading-attributes-spec.md`. This round re-reads the whole change, with extra attention on 8f13512 (the round 5 fix) and on areas earlier rounds did not probe.
+Scope: `git diff 631ceea -- src tests` on branch `heading-attributes`, checked against `heading-attributes-spec.md`. This round focuses on 2ba1a40, which fixes implementation review round 10:
+
+- `parse_heading_content` now reads the block on its own as inline Markdown at parse time, into the new `HeadingAttributes::block_children`. Its spans are absolute.
+- `gen_heading_content` gathers its delimiter runs with `heading_delimiter_runs`, which takes the text's runs plus the block's runs read on its own. It does this on both the first write and the preserved-decorations retry.
+- `gen_attribute_block` decides which spaces to keep from `block_children` and no longer parses the block again. The position is now made absolute (`attributes.span.start + start`).
 
 ##### Summary
 
-`cargo test` passes (all six suites: 165, 15, 1, 2, 9 and 2 tests). I found no panics, no unstable output caused by the change, and no case where a recognized block is lost, split or changed beyond the spec's space collapsing. 8f13512 works: the footnote-reference rule now fires only inside `with_line_starts`, so paragraphs and headings without a block format exactly as in the base.
+`cargo test` passes: 166, 16, 1, 2, 9 and 2 tests, plus the spec runners (203 spec files). `cargo clippy --all-targets` reports no warnings.
 
-There are two low-severity findings:
+The fix for round 10 holds, and I found no behavior bugs in 2ba1a40:
 
-1. The footnote-reference rule is wider than its own comment says, which affects how the middle of the heading text wraps.
-2. A test gap in rule 2.
+- Round 10 finding 1 is fixed:
+  - `` Run `make` `` / ``{title="press ` to open"}`` / `===` is stable under `atx`, `setext`, and `setext` with `always`.
+  - So are `` `c` a `` / ``{t=`}`` / `===` and `*a 1.*** <div>` / `{x=*a}` / `===`.
+  - `` # The `run` command {data-cmd="`run`"} `` and `` # `c` {`a`} `` still keep a single backtick.
+- A recognized ATX block now gets the same text as `oldcli` gives for the whole heading:
+  - `ir11/diffold.py` checked 3,100 random headings in two emphasis configurations.
+  - The only differences were headings where `oldcli` pairs a run in the block with a leftover or unclosed run in the text (`# **a* {a=b*}`, `# ***x_y* {x=***}`). Rule 1 says that pairing doesn't happen.
+- Backticks in the block that sit inside an element read on its own give the same result as `oldcli`. This covers link text and destinations, math, footnote references and inline HTML.
+- The kept-spaces exception still works:
+  - in a block quote and a list item;
+  - after a CJK character;
+  - with a reference link whose definition comes before the heading, after it, inside a block quote, or inside a list item.
+- All of the spec's examples give the spec's output.
+
+Two findings remain, both test gaps:
+
+1. low: the preserved-decorations retry has no test with a code span in the block.
+2. low: no test checks that the kept spaces depend on the document's link definitions.
 
 ##### How it was checked
 
-- Re-read the full diff:
-  - parser: `attribute_block_start`, `read_block`, `attribute_len`, `heading_attributes` in `block.rs`;
-  - generator: `gen_heading`, `gen_heading_content`, `gen_text_and_attribute_block`, `gen_attribute_block`, `with_line_starts`, `text_from`, `starts_block_at_line_start`;
-  - surrounding code: `gen_nodes`, `gen_checked_decorations`, `reads_back_decorations`, `delimiter_runs`, `TextBuilder::space_items`, `utils::wrapping_word_starts_block` and `leading_block_words_end`.
-- Checked the grammar by hand against the spec's invalid examples and edge forms: `{: }`, `{ :#id}`, `{a= b}`, `{=a}`, empty quoted values, non-ASCII names. Checked slicing for char-boundary panics.
-- Checked the claim that reparsing the text without the block can only differ from the full parse when the `{` is not plain text:
-  - Emphasis: closers are matched left to right and look back.
-  - Code spans: a run in the block can only pair with one in the text across the `{`.
-  - Links and brackets.
-  - HTML and autolinks: no inline element can end with `}`.
-  - The inline parser keeps no shared state between the two parses.
-- Checked that `debug_assert!(context.delimiter_runs().is_none())` in `gen_heading_content` can't fire. `DisplayMath`, the one inline-kind node that could start a container's children, is only ever created inside a paragraph. Also tried tight lists, task items, definition lists, footnote definitions and tables next to a heading.
-- Ran about 70 hand-made inputs through fmtcli and the pre-change `oldcli`. They covered:
-  - tabs in container prefixes (`-\t#`, `>\t`, `1.\t` with virtual spaces);
-  - a tab after a leading tag;
-  - a heading whose text is only a tag (`<img src=x> {#id}`, `<div> {#id}`, `</span> {.c}`);
-  - a literal `\` before the block;
-  - `##`, `<div>`, `<!-- -->`, `>`, `+++`, `$$`, `=`, `===`, `---`, `***` and ` : ` before the block or mid-text with wrapping;
-  - code span delimiter choice with backticks in the block;
-  - CRLF with multi-line Setext and hard breaks;
-  - `textWrap: never`;
-  - rule 2 with inline HTML, autolinks, strikethrough, images and strong emphasis.
-- A small random sweep (`/private/tmp/claude-501/-Users-fine-Desktop-ASP-assignment-dprint-plugin-markdown/3ab15907-ec21-4256-8db0-805b2ce33b6f/scratchpad/ir6/sweep.py`, seeds 1 to 4):
-  - Inputs: 1,900 single-line headings whose text and block both mix delimiter characters (`*`, `_`, `` ` ``, `~~`, `$`, brackets, tags, `[^1]`, `\`). Blocks used both quote kinds with spaces and braces inside.
-  - Configurations: `atx`, plus `setext` with `always`/12, `maintain` and `sentence`/12.
-  - Result: 3 unstable outputs. All 3 are byte-identical to the base formatter's output. Two have no recognized block, because rule 2 rejects a `{` inside a code span or emphasis. The third is the pre-existing footnote problem listed below.
+- Read the 2ba1a40 diff and the code around it:
+  - `parse_heading_content`, `parse_heading_inlines`, `parse_inlines_before_attributes`;
+  - `heading_delimiter_runs`, `push_delimiter_runs`, `push_pairable_runs`, `push_backtick_runs`;
+  - `decorations_need_checking`, `gen_heading_content`, `gen_attribute_block`;
+  - `gen_code`/`get_backtick_count`, and how `decoration_delimiter`/`Beside::allows` use `pairable` and `decorations`.
+- Ran `ir11/stab.py` with seeds 1, 2, 3, 22 and 43, about 2,700 headings in total, and `ir11/stab_k.py` with `emphasisKind: asterisks` and `strongKind: underscores`, 500 headings. Each heading was tried in two forms: with the block on a Setext line of its own, and as an ATX heading. Each form was formatted under `atx`, `setext`, and `setext`/`always` (`stab_k.py` also uses width 14).
+  - Every instability had an emphasis run in the text that pairs with a run in the block across the lines when the block isn't recognized. Examples: `**`` / `{a=b*}`, `**[x](u)a*` / `{a=b*}`, `***x_y <b> *b _` / `{x=***}`. That's the round 9 case that was deliberately not applied.
+  - Some of these switch from Setext to ATX on the second pass instead of from ATX to Setext.
+- Ran `ir11/diff2.py`, about 1,800 headings. It compares the text part of `# T B` (recognized) with `T` / `B` / `===` under `atx` (block not recognized on the first pass, then joined). The only differences were:
+  - the same cross-line emphasis pairing;
+  - a text backtick that pairs with a block backtick, which rule 2 rejects;
+  - the block itself being formatted as today while it isn't recognized.
+- Mutation on a copy (`ir11/mut`, built as `ir11/mutcli`): see finding 1.
 
-Problems seen that already exist before the change and are not counted:
+Seen but not counted:
 
-- The Setext conversion check doesn't treat a leading defined footnote reference followed by `:` as a block start.
-  - Example, `heading.kind: setext`: `# [^1]: x` becomes `[^1]: x` / `=======`, which is a footnote definition. The second pass gives `[^1]: x =======`.
-  - `# [^1]: {#id}` does the same. That is correct for this feature, since the spec says to use the existing check.
-- `- [x]` / `  # Title {#id}` is written as `- [x] # Title {#id}`, where the heading becomes paragraph text after the task marker. The base does the same without the block.
-- The file-text fallback for a multi-line Setext heading written as ATX loses the hard break. `__ \` / `'x___   {#id   .c}` / `===` becomes `# __ \'x___   {#id   .c}`, which is unstable. The base produces the same output for the same input, so this is the "already unstable" case the spec excludes.
+- When a code span runs from the text into a block on the next line, and conversion to ATX joins the lines, the space at the line break is lost: `` `*** `` / ``{t="a ` b"}`` / `===` gives ``# `***{t="a ` b"}``. `oldcli` does the same. The block isn't recognized here, because rule 2 rejects it.
+- In `parse_heading_content`, `block_line.column` is `last.column + start`, where `start` is a byte offset, not a column. The column is wrong after a tab or a multi-byte character in the text. Nothing in the inline parser reads `column` (it only uses `virtual_spaces`), so the output isn't affected.
 
 ---
 
-##### 1. The footnote-reference rule keeps any footnote reference in the text off a line start, not only one before the block, so the middle of the text wraps differently from today
+##### 1. The preserved-decorations retry has no test with a code span in the block
 
 **Severity:** low
 
-8f13512 limits the rule to heading text with a block, using `context.is_within_line_text()`. The code comment gives the reason: the block "after the last words can't be wrapped away from them, so a footnote reference with a colon after it *there* is followed on its line by more than the colon". That reason holds only for a reference among the last words, as in `[^1]: {#id}`. Here the block itself is what turns the line into a definition, and that case is the one the existing test covers.
+2ba1a40 changed both `gen_heading_content` calls to `heading_delimiter_runs(attributes, context)`, at line 817 for the first write and line 831 for the `with_preserved_decorations` retry. The only retry test, `` # foo******bar*********baz `c` {t=`} ``, has a lone backtick in the block. Every reading counts that backtick, so the test can't tell `heading_delimiter_runs` apart from the whole content with the block as plain text, which is what the code used before 249ed33.
 
-The code does not check where the reference is. `following_text` runs from the reference to the end of the block, so `starts_block_in_paragraph` is true for a reference followed by `:` anywhere in the text. As a result, a reference in the middle of the text, far from the block, is kept off a line start when a block follows, and is not when there is none.
-
-The spec says "The heading text is formatted as it is today" and limits the wrapping change to the block joining the last word. This changes mid-text wrapping instead. The change is for the better, because today's output makes a definition and is unstable. But it is untested, and it is not what the comment describes. Adding `{#id}` to a heading also changes where its middle lines break.
-
-Input (`heading.kind: setext`, `textWrap: always`, `lineWidth: 12`):
-```markdown
-# Alpha beta [^1]: gamma delta epsilon {#id}
-
-# Alpha beta [^1]: gamma delta epsilon
-
-[^1]: n
-```
-Actual:
-```markdown
-Alpha
-beta [^1]:
-gamma delta
-epsilon {#id}
-=============
-
-Alpha beta
-[^1]: gamma
-delta
-epsilon
-===========
-
-[^1]: n
-```
-The second heading is today's behavior and is unstable: the second pass turns `[^1]: gamma …` into a footnote definition. The first heading is wrapped differently only because a block follows it.
-
-Expected: per the spec's wording, the first heading wraps like the second, with only `epsilon {#id}` joined. Two options:
-- Keep the wider rule as a deliberate fix. Update the comment to say it covers every reference in heading text with a block, add a test with a mid-text reference such as the input above, and mention it in the PR.
-- Or narrow the rule to the case the block causes, where only spaces separate the colon from the block. Fix mid-text references separately for all headings and paragraphs.
-
----
-
-##### 2. Rule 2 is untested for inline HTML and strikethrough
-
-**Severity:** low
-
-The tests cover rule 2 ("the `{` is not inside any inline element that starts before it") for a link (`# Title [a {b](u) c}`), emphasis (`# *a {*}`) and math (`# a   $b   {x=$}`). The code span example `# Title `{#id` }` is also rejected by rule 3, because the `{` touches the backtick.
-
-No test isolates rule 2 for inline HTML or strikethrough.
-
-Inline HTML matters most. Its closing `>` is a valid `char` and can fall inside a quoted value, so the tag can close inside what reads as a valid block. Its content is written verbatim. If the "inside an element" check ever broke for `Html` nodes, the formatter would collapse spaces inside a raw HTML attribute value.
-
-Some elements need no test of their own:
-- Autolinks and footnote references can't contain a space before the `{`, so rule 3 already covers them.
-- An image is written the same whether or not its `{` is accepted, so a test would not show the difference.
-
-The current output is correct for both cases.
+On a copy of the tree, I changed line 831 to `delimiter_runs(heading.children, context)`. All 203 spec files still pass. The mutant counts the backticks of the block's own code span:
 
 Input (`heading.kind: atx`):
 ```markdown
-# a <b c=" {x   y=">"}
-
-# a ~~b {x="1   2" y=~~}
+# foo******bar*********baz `c` {`a`}
 ```
-Actual and expected (unchanged, no block recognized):
+Current output (correct, and what `oldcli` gives):
 ```markdown
-# a <b c=" {x   y=">"}
-
-# a ~~b {x="1 2" y=~~}
+# foo******bar*********baz `c` {`a`}
 ```
-If either block were wrongly recognized:
-- the HTML case would print `# a <b c=" {x y=">"}`, changing the attribute value;
-- the strikethrough case would keep `"1   2"` with two spaces.
+Mutant output:
+```markdown
+# foo******bar*********baz ``c`` {`a`}
+```
 
-Suggested fix: add both to the "should not recognize a block whose brace is within a link or emphasis" test in `tests/specs/headers/Headers_Attributes.txt`.
+With the mutant, the joined form `` foo******bar*********baz `c` `` / ``{`a`}`` / `===` (`atx`) is also unstable. The first pass gives `` # foo******bar*********baz `c` {`a`} `` and the second gives ``` ``c`` ```.
+
+Suggested fix: add `` # foo******bar*********baz `c` {`a`} `` to the "should not count the backticks of a code span within the block" test in `Headers_Attributes.txt`, with its current output.
 
 ---
 
-2 findings: (1) the footnote-reference rule keeps any footnote reference in the text off a line start, not only one before the block, so the middle of the text wraps differently from today; (2) rule 2 is untested for inline HTML and strikethrough.
+##### 2. No test checks that the kept spaces depend on the document's link definitions
+
+**Severity:** low
+
+Output bullet 2 says the block is read on its own "with the document's link and footnote definitions" to decide which spaces are kept. Before 2ba1a40, `gen_attribute_block` parsed the block with the formatter's `context.link_labels()` and `context.footnote_labels()`. Now the parser reads it, with the parser's inline context. So whether every definition is known when the heading is parsed now matters, including one that comes after the heading or sits in a container.
+
+It works today:
+
+- `# Title {x=[a   b][r]   .c}` with `[r]: /v` after the heading gives `# Title {x=[a   b][r] .c}`.
+- Without the definition, it gives `# Title {x=[a b][r] .c}`.
+- A definition before the heading, inside a block quote, or inside a list item behaves the same way.
+
+No spec file covers this, though. Every kept-spaces test uses an element that doesn't need a definition: a code span, emphasis, inline HTML, an inline link, math, or strikethrough. A change that left the definitions out of the block's reading would pass every test.
+
+Input (`heading.kind: atx`):
+```markdown
+# Title {x=[a   b][r]   .c}
+
+# Title {x=[c   d][s]   .c}
+
+[r]: /v
+```
+Expected (and current) output:
+```markdown
+# Title {x=[a   b][r] .c}
+
+# Title {x=[c d][s] .c}
+
+[r]: /v
+```
+
+Suggested fix: add this to `Headers_Attributes.txt` next to "should keep the spaces within a link, math and strikethrough in the block". It covers both a defined label, whose spaces are kept, and an undefined one, whose spaces collapse.
+
+---
+
+2 findings: (1) the preserved-decorations retry has no test with a code span in the block; (2) no test checks that the kept spaces depend on the document's link definitions.
