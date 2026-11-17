@@ -7,7 +7,7 @@ Team: Aibar, Assem, Ethan and Nurislam. The specification is [heading-attributes
 - **Aibar** wrote the most complete first draft setting the recognition, output, and edge-case rules, and contributed to the final review and verification of the pull request.
 - **Assem** wrote the draft defining the `attr_list` syntax and line-wrapping behavior, revised `heading-attributes-spec.md` to address instructor feedback (referencing `Options::ENABLE_HEADING_ATTRIBUTES`, raw block parsing before inline parsing, CRLF normalization, and escaped braces), and ran the final specification review rounds.
 - **Ethan** wrote the draft covering multi-line and no-space CommonMark heading edge cases, and contributed to the final review and test verification of the pull request.
-- **Nurislam** merged the three drafts into one specification, implemented the feature and test suite in `src/` and `tests/`, and ran the implementation review rounds.
+- **Nurislam** merged the three drafts into one specification and implemented the feature and its tests with Claude, then for the final submission fixed the regressions that implementation review found in the updated parser, brought the specification in line with the code, and ran specification review rounds 5–7 and implementation review rounds 7–11 with Claude Opus 5.5.
 
 ## Verifying that the project compiles and runs
 
@@ -68,30 +68,60 @@ Verification complete: the repository builds clean and all tests run successfull
 
 ## Specification review
 
+Rounds 1–4 were run by Assem with Copilot Fusion (`mai-code-1.1-flash`) and rounds 5–7 by Nurislam with Claude Opus 5.5.
+
 | Round | Findings | Main changes made |
 | ----- | -------- | ----------------- |
 | 1 | 2 | Clarified CRLF (`\r\n`) normalization prior to block recognition; specified that inline element boundary checks rely on the formatter's existing `pulldown-cmark` inline parser |
 | 2 | 1 | Explicitly noted in Recognition rule 3 that backslash-escaped braces (`\{...}`) are rejected because no space precedes the opening brace |
 | 3 | 2 | Clarified that block matching spans from the opening `{` to trailing whitespace while tracking quote state for inner braces; added an example clarifying literal backslashes before closing quotes |
 | 4 | 2 | No changes made; findings were trivial/contradictory (EBNF already excludes tabs outside quotes, and tying inline checks to the formatter's `pulldown-cmark` parser avoids overspecification) |
+| 5 | 8 | Rule 2 names exactly which elements can take the `{` in (a link's destination or title too, not autolinks; link definitions matter); the kept-spaces exception says how the block is read and why; a heading whose text opens a backtick fence stays ATX; the introduction says the formatter doesn't use `pulldown-cmark`. Not applied: emphasis meaning that changes when a block on its own line is joined and recognized (the feature itself), and an existing wrapping bug a long last word triggers |
+| 6 | 5 | Text delimiters are decided with the block read on its own, so a block joined from its own line keeps the text the same; the wrapping protections heading text with a block gets are described; Parser integration matches rule 2; wording of rule 2 and the code-fence exception |
+| 7 | 3 | Wording only: the wrapping protections also name keeping a line's first word with the next one; the "written the same" sentence excepts emphasis that pairs across; any line the protections keep together may exceed `lineWidth` |
 
 ### Last specification review
 
-Prompting Copilot Fusion (`mai-code-1.1-flash`) with `Review the section named "Heading attributes" in heading-attributes-spec.md` produced the following output; strikethrough indicates LLM output that I deemed incorrect or irrelevant. Finding 1 contradicts round 1 and would overspecify `pulldown-cmark` internals, while Finding 2 is already enforced by the EBNF grammar (`SP` and `char` exclude tabs).
+Prompting Claude Opus 5.5 (a Claude Code subagent, default effort) with the prompt below produced the following output; strikethrough indicates LLM output that I deemed incorrect or irrelevant. All three findings were wording fixes and were applied, so nothing is struck through. `[scratchpad]` stands for the session's temporary folder.
 
-> I reviewed `heading-attributes-spec.md`. Overall the section is quite strong, but I’d tighten two points:
+> Review the specification in heading-attributes-spec.md in the git repo at /Users/fine/Desktop/ASP-assignment/dprint-plugin-markdown (a dprint Markdown formatter plugin with its own Markdown parser in src/). Review only that file. Read the code only to check what the spec claims about existing behavior or about the formatter. Write numbered findings to /Users/fine/Desktop/ASP-assignment/work/spec-review-final/round-07.md, each with a one-line title, a severity (high/medium/low) and a short explanation. Look for contradictions, ambiguities, wrong examples, cases an implementer would have to guess, and statements that conflict with the existing formatter. Do not edit any other file and do not rewrite the spec. End your reply with the number of findings and a one-line list of their titles.
 >
-> - ~~High confidence: Recognition rule 2 is underspecified in a way that can make the behavior version-dependent.~~
->   - ~~It says “no inline construct remains unclosed at the boundary where the block starts,” but whether that is true depends on the exact pulldown-cmark configuration and delimiter state.~~
->   - ~~This means the same source could be recognized or rejected depending on the formatter’s extension configuration or parser version, even if the block grammar itself is unchanged.~~
->   - ~~I’d recommend either enumerating the exact parser config used for this check or defining the boundary test more concretely so the spec is stable across formatter updates.~~
+> The previous rounds' findings and what was done about them are in round-05.md, round-06.md and log.md in /Users/fine/Desktop/ASP-assignment/work/spec-review-final/; `git diff fa6c6dd -- heading-attributes-spec.md` shows the changes since round 6 reviewed it. Don't raise a finding that the log lists as not applied unless you have a new reason. Keep this round to about 15 minutes of work.
 >
-> - ~~Medium confidence: The tab-invalid rule is only in prose, not in the EBNF.~~
->   - ~~The grammar uses `SP` as a space, while the prose says “Outside quoted values, a tab makes the block invalid.”~~
->   - ~~That means a literal parser built from the grammar alone could accept `{\t#id}` or `{#id\t}` unless the implementation also adds a separate tab check.~~
->   - ~~I’d fold the “no tabs outside quoted values” rule into the grammar or add an explicit normative sentence that must be enforced in addition to the EBNF.~~
->
-> Those are the main things I’d fix before treating this as a final, implementation-ready spec.
+> If you want to check what the current build does, `[scratchpad]/fmtcli/target/release/fmtcli '<config json>' < input.md` formats stdin with the current code (it prints `UNSTABLE` to stderr and exits 2 when a second pass differs), and `[scratchpad]/oldcli/target/release/oldcli` is the same CLI built from the code before the feature. Example config: `'{"heading.kind":"setext","textWrap":"always","lineWidth":12}'`. Don't build or install anything; put scratch files in `[scratchpad]/sr7/`.
+
+#### Spec review, round 7: heading-attributes-spec.md (as committed in 7c84e56)
+
+Every example in the spec gives the stated output with the current build (fmtcli), and none of them is unstable. Round 6's two instabilities (`` `c` a`` / ``{x=`}`` / `===` and `**e*` / `{x=*}` / `===`, with `atx`) are now stable. I checked the cases below with fmtcli and oldcli. I also ran about 2,500 random headings with blocks (ATX, and Setext with the block on its own line) through both builds, under `atx`, `setext` + `always` + `lineWidth: 8`, and `setext` + `maintain`. None was unstable in fmtcli where oldcli was stable. In ATX output, the text never differed from oldcli's except where emphasis pairs across the text and the block.
+
+##### 1. The wrapping protections leave out the rule that keeps a line's first word with the next word
+
+Severity: medium
+
+Output bullet 3 lists three ways that wrapped text with a block is kept from starting a block. None of them covers a first word that would start a block if it were left alone on its line. "A word that would start one is kept off the start of a line" can't apply to the text's first word, because that word always starts a line. The build keeps such a word with the word after it, on the text's first line and on any line after a hard break:
+
+- `# --- alpha beta {#id}`, with `setext`, `always` and `lineWidth: 5` (or 8), gives `--- alpha` / `beta {#id}` / `==========`.
+- `# *** alpha beta {#id}` gives `*** alpha` / `beta {#id}`.
+- `alpha\` / `*** beta gamma {#id}` / `===` gives `alpha\` / `*** beta` / `gamma {#id}`.
+
+An implementer who follows the three listed rules writes `---` / `alpha` / `beta {#id}`. There `---` is a thematic break and the heading loses its first word. This isn't today's behavior either: both builds write `---` alone for `# --- alpha beta` (no block), and the second pass differs. The leading-tag item is one case of this rule. The bullet should state the general rule ("a line's first word that would start a block on a line of its own stays with the word after it") and say that it applies to the first line and to each line after a hard break.
+
+##### 2. "The text is written the same whether or not the block is recognized" is not true where emphasis pairs across
+
+Severity: low
+
+Output bullet 1 now states this as a result of the delimiter rule. It fails where a delimiter in the text pairs with one in the block when the block isn't recognized:
+
+- `# *a {x=*}` is recognized and gives `# *a {x=*}`.
+- `*a` / `{x=*}` / `===` (the block on its own line, not recognized), with `atx`, gives `# _a {x=_}`. oldcli gives the same for `# *a {x=*}`.
+
+The text is `*a` in one case and `_a` in the other. The log lists the change in meaning as the feature itself and not to be fixed, and this finding doesn't reopen that. The problem is the round-6 sentence, which states a general guarantee that this case breaks. It should be limited, for example "so where nothing in the text pairs with the block, the text is written the same whether or not the block is recognized".
+
+##### 3. "The final line may exceed `lineWidth`" no longer covers every line that can
+
+Severity: low
+
+The rules that round 6 added keep two words together on lines other than the last, so those lines can also run past `lineWidth`. Example: `# <span> alpha beta gamma {#id}`, with `setext`, `always` and `lineWidth: 8`, gives `<span> alpha` (12 columns) / `beta` / `gamma {#id}`. With finding 1's rule, `--- alpha` behaves the same way. Read next to bullet 3's three rules, the sentence suggests that only the line holding the block may be too long. An implementer could then break `<span>` away from `alpha` to honor `lineWidth`, which is what the tag rule forbids. The sentence should say that a line holding the block, or holding a word kept with the one after it, may exceed `lineWidth`.
 
 ## Implementation review
 
@@ -103,6 +133,10 @@ Prompting Copilot Fusion (`mai-code-1.1-flash`) with `Review the section named "
 | 4 | 4 | A leading tag stays with any element after it, not only plain text; the text's last words are read together with the block on their line (kept apart from the paragraph bound that doubled backslashes), and a footnote reference followed by a colon is kept off a line start; added a test for duplicate attributes, order and unquoted values. Not applied: hard breaks nested inside emphasis or links, the same gap paragraphs have |
 | 5 | 1 | The footnote-reference rule from round 4 also changed how paragraphs wrap, outside the spec's scope; it now applies only to heading text followed by a block |
 | 6 | 2 | Trivial: corrected the comment on the footnote rule (it applies anywhere in heading text with a block) and added a test for it; added rule 2 tests for inline HTML and strikethrough. No behavior changes |
+| 7 | 4 | Reviewed Aibar's parser change for the final submission (the block is found before inline parsing): fixed a regression where any unclosed `[`, `![` or `[^` before the block rejected it, by having the parser and the formatter's read-back share one function; spaces inside Markdown-like text in the block now followed the updated spec; added a code-span-only rejection test; removed an unused parameter |
+| 8 | 3 | Collapsing every space in the block made a block on its own Setext line change on the second pass once joined, so the kept-spaces exception was restored in the code and the spec; added tests for images, reference links, links within emphasis and definitions. Not applied: a link label that only matches its definition after emphasis is rewritten |
+| 9 | 3 | A heading whose text opens a backtick code fence stays ATX when a backtick in its block hides the fence; fixed a test whose block was invalid. Not applied: a `+*a` / `{k=a*}` heading that switches from ATX to Setext once its block is joined, which needs emphasis pairing across lines |
+| 10 | 2 | The block is read on its own when the heading is parsed and its delimiter runs count when the text's delimiters are chosen, so the text is written as today whether or not the block is recognized (a lone backtick in a joined block had changed `` `make` ``); added tests for both join directions and the preserved-decorations retry |
 
 ### Last implementation review
 
