@@ -732,8 +732,14 @@ impl<'a, 'b> InlineParser<'a, 'b> {
       return;
     }
     let (can_open, can_close) = self.flanking(start, end, byte);
-    // A caret immediately after a bracket belongs to a footnote marker.
-    let can_open = can_open && !(byte == b'^' && self.text.char_before(start) == Some('['));
+    // a caret right after a bracket is the marker of a footnote reference, so
+    // it doesn't open (an escaped bracket is text, not a bracket)
+    let after_bracket = byte == b'^'
+      && self
+        .delimiters
+        .last()
+        .is_some_and(|d| matches!(d.kind, DelimiterKind::Link | DelimiterKind::Image) && d.end == start);
+    let can_open = can_open && !after_bracket;
 
     if !can_open && !can_close {
       self.pos = end;

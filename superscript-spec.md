@@ -7,7 +7,7 @@ CodeChat Editor renders that Markdown with pulldown-cmark 0.13
 ([`Options::all()`](https://docs.rs/pulldown-cmark/0.13.6/pulldown_cmark/struct.Options.html)
 without smart punctuation), which reads `^text^` as superscript. This
 plugin's parser reads `^` as plain text, so formatting can change what the
-CodeChat Editor shows. Today, on `main` (`7428123`), with `␣` a space and `⏎`
+CodeChat Editor shows. Today, on upstream `main` (`7428123`), with `␣` a space and `⏎`
 a line break (rows 1-3 with any `textWrap`, row 4 with `always` or `never`):
 
 | Input           | Formatted today | Effect                                                                                 |
@@ -25,10 +25,23 @@ character, so there is nothing to normalize and no new configuration option.
 
 Out of scope: subscript `~text~`
 ([PR #3](https://github.com/bjones1/dprint-plugin-markdown/pull/3)), and
-`<sup>` HTML, which is already kept as inline HTML. Existing formatter bugs
-that hit `*` and `_` hit `^` the same way and are not fixed here: for
-example, turning a setext heading into ATX drops a line break
-(`_中_⏎字⏎===` → `# _中_字`, `**\⏎ab**⏎===` → `# ** ab**`).
+`<sup>` HTML, which is already kept as inline HTML.
+
+Existing formatter bugs that hit `_` today hit `^` too once it is a
+decoration, so these `^` inputs, written back safely today, change rendering
+after this change. They are not fixed here, since the fix belongs to the code
+shared with `_`:
+
+- With `textWrap: always` or `never`, turning a setext heading into ATX
+  drops a line break between CJK characters, so the closing `^` lands inside
+  a word and the superscript is lost: `^中^⏎字⏎===` → `# ^中^字` (today
+  `_中_⏎字⏎===` → `# _中_字` with any `textWrap`).
+- The space before a footnote reference that has a definition is dropped:
+  `x ^a^ [^1] y⏎⏎[^1]: n` → `x ^a^[^1] y` (today `_a_` the same way).
+- With `textWrap: always` or `never`, joining lines leaves a `*` that starts
+  a line inside a superscript unescaped: `^a␣␣⏎*⏎b^` → `^a\⏎* b^`, a list.
+- With `hardBreakKind: doubleSpace`, `^a\⏎\⏎b^` → `^a␣␣⏎␣␣⏎b^`, two
+  paragraphs.
 
 ## Syntax
 
@@ -44,7 +57,8 @@ So:
 - Escapes, code spans, math, autolinks and inline HTML are read first, as for
   `_`.
 - A `^` right after `[` never opens a superscript: it is the marker of a
-  footnote reference `[^1]`.
+  footnote reference `[^1]`. An escaped `\[` is text, so a `^` after it can
+  open.
 
 | Input           | Read as                                     |
 | --------------- | ------------------------------------------- |
@@ -58,12 +72,13 @@ So:
 | `*^a^*`         | emphasis around superscript `a`             |
 | `^a *b^ c*`     | superscript `a *b`, then the text `c*`      |
 | `[^1] b^`       | text (the first `^` is a footnote marker)   |
+| `\[^1] b^`      | text `[`, then superscript `1] b`           |
 
 `x^2^` is a superscript in Pandoc and in the unreleased pulldown-cmark
 `master`, but not in 0.13, which this follows.
 
-Known differences from pulldown-cmark 0.13. The inputs shown are formatted
-without a change in rendering:
+Known differences from pulldown-cmark 0.13. All inputs shown except the last
+one are formatted without a change in rendering:
 
 - pulldown-cmark keeps one "openers bottom" shared by all `^` and `~` runs.
   This parser keys it by character, run length mod 3 and whether the closer
@@ -106,7 +121,8 @@ number of carets (1 or 2) is not stored: it is
 Parser, `src/parser/inline.rs`:
 
 - `parse()`: `^` goes to `parse_emphasis_delimiter()` with `*`, `_` and `~`.
-- `parse_emphasis_delimiter()`: a `^` run right after `[` cannot open.
+- `parse_emphasis_delimiter()`: a `^` run cannot open right after a `[`
+  that is on the delimiter stack (an escaped `\[` is not).
 - `flanking()`: no change. `^` already takes the `_` branch (not within a
   word).
 - `wrap_emphasis()`: `(b'^', _) => TextDecorationKind::Superscript`. The
@@ -127,12 +143,14 @@ Generator, `src/generation/generate.rs`:
   the existing read-back check (`reads_back_decorations()`) runs and catches
   a rewrite that changes which superscripts there are or the text they hold.
 - `gen_hard_break()`: a hard break right after `^` is written as it was (two
-  spaces or a backslash). A backslash there would let the `^` open a
-  superscript (`x ^␣␣⏎b^`). The read-back check alone misses a hard break that
-  only moves a superscript without changing its text
-  (`^␣␣␣⏎.^.^ !` → `^\⏎.^.^ !`).
-- `decoration_keeps_its_delimiters()`: `^` joins the characters in
-  `is_delimiter`.
+  spaces or a backslash). The read-back check already keeps `x ^␣␣⏎b^`,
+  where a backslash would let the `^` open a superscript. This rule is for a
+  hard break that only moves a superscript without changing its text, which
+  the check misses (`^␣␣␣⏎.^.^ !` → `^\⏎.^.^ !`).
+- `decoration_keeps_its_delimiters()`: false for a superscript. An `_`
+  written against a word becomes `*`, but `^` has nothing to become. So with
+  `wrapUnspacedScripts`, `^中^⏎字` keeps a line break or a space between the
+  closing `^` and `字`.
 
 Tests, `tests/commonmark_spec_check.rs`: its HTML renderer maps `Superscript`
 to `sup` (the `match` must cover the new kind).
@@ -152,13 +170,17 @@ Formatter, new file `tests/specs/TextDecoration/TextDecoration_Superscript.txt`
 | -------------------------------------- | -------------------------------------- |
 | `a ^b c^ d`                            | unchanged                              |
 | `^^a^^ and ^^^a^^^ and ^bar^^`         | unchanged                              |
+| `^^a^^`                                | unchanged                              |
 | `x^2^ and 1^st^ place`                 | unchanged                              |
 | `*^a^* and ^*a*^`                      | `_^a^_ and ^_a_^`                      |
 | `^a *b^ c*`                            | unchanged                              |
 | `x ^␣␣⏎b^`                             | unchanged                              |
+| `x ^␣\⏎b^`                             | unchanged                              |
 | `^^a .^␣␣⏎b`                           | unchanged                              |
 | `x ^␣␣⏎[^1] b^` and `^^[^1]^␣␣⏎b`      | unchanged                              |
 | `^␣␣␣⏎.^.^ !`                          | `^␣␣⏎.^.^ !`                           |
+| `a \[^b *c^ d*`                        | unchanged                              |
+| `^中^⏎字⏎===`                          | `# ^中^␣字`                            |
 
 New file `tests/specs/TextDecoration/TextDecoration_Superscript_TextWrap_Always.txt`
 (`textWrap: always`, `lineWidth: 20`):
@@ -170,4 +192,7 @@ New file `tests/specs/TextDecoration/TextDecoration_Superscript_TextWrap_Always.
 
 For every formatter test, pulldown-cmark 0.13.6 must render the input and the
 output the same way, apart from whitespace, and every existing test must
-still pass.
+still pass. `tools/superscript-render-check` (run by hand with `cargo run`;
+CI does not run it) checks the first part for both formatter test files.
+Goal row 4 only changes whitespace, so that check can't see it; the expected
+output in the `TextWrap_Always` file covers it.

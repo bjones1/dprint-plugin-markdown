@@ -67,3 +67,31 @@ b
 [expect]
 ^  
 .^.^ !
+
+!! escaped bracket !!
+a \[^b *c^ d*
+
+[expect]
+a \[^b *c^ d*
+
+!! two carets !!
+^^a^^
+
+[expect]
+^^a^^
+
+!! keep backslash break !!
+x ^ \
+b^
+
+[expect]
+x ^ \
+b^
+
+!! setext heading !!
+^中^
+字
+===
+
+[expect]
+# ^中^ 字

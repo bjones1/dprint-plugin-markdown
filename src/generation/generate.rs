@@ -229,8 +229,8 @@ fn push_delimiter_runs(nodes: &[Node], context: &Context, runs: &mut DelimiterRu
   }
 }
 
-/// Pushes each run of `*` or `_` within the text at `span` that can open or
-/// close emphasis where it sits, which is decided by the characters of the
+/// Pushes each run of `*`, `_` or `^` within the text at `span` that can open
+/// or close emphasis where it sits, which is decided by the characters of the
 /// file on either side of the run.
 fn push_pairable_runs(span: Span, file_text: &str, pairable: &mut Vec<(Span, char)>) {
   for (start, end, c) in unescaped_delimiter_runs(span.text(file_text)) {
@@ -1880,8 +1880,9 @@ fn written_delimiter(decoration: &TextDecoration, context: &Context) -> &'static
     (TextDecorationKind::Strong, Some(b'_')) => "__",
     (TextDecorationKind::Strong, _) => "**",
     (TextDecorationKind::Superscript, _) => {
-      // Nested triple runs have a one-caret outer and two-caret inner node.
-      if decoration.children.first().unwrap().span().start - decoration.span.start == 2 {
+      // the carets are counted from where the content starts, not read off the
+      // file text: `^^^a^^^` is a one-caret superscript around a two-caret one
+      if content_span(decoration.children).map_or(1, |content| content.start - decoration.span.start) == 2 {
         "^^"
       } else {
         "^"
@@ -1939,8 +1940,8 @@ fn can_pair_with_delimiter(text: &str, delimiter: char) -> bool {
     })
 }
 
-/// Each run of `*` or `_` within the text that a backslash doesn't escape, as
-/// where it starts and ends and the character it's made of.
+/// Each run of `*`, `_` or `^` within the text that a backslash doesn't
+/// escape, as where it starts and ends and the character it's made of.
 fn unescaped_delimiter_runs(text: &str) -> impl Iterator<Item = (usize, usize, char)> + '_ {
   let mut chars = text.char_indices().peekable();
   let mut is_escaped = false;
@@ -2987,7 +2988,10 @@ fn gen_hard_break<'a>(hard_break: &HardBreak, position: NodePosition, context: &
     let writes_double_space =
       if context.is_preserving_decorations() || context.file_text[..hard_break.span.start].ends_with('^') {
         // the break is written as it was, since the delimiters that may sit
-        // against it are being written as they were and are read by it
+        // against it are being written as they were and are read by it. A
+        // break right after a `^` is also written as it was: a backslash there
+        // can let a `^` left as text open a superscript, and moving one
+        // without changing its text gets past the read-back check
         !context.file_text[hard_break.span.start..].starts_with('\\')
       } else {
         context.configuration.hard_break_kind == HardBreakKind::DoubleSpace
@@ -3574,8 +3578,11 @@ fn decoration_keeps_its_delimiters(decoration: &TextDecoration, file_text: &str)
   };
   // a delimiter character written against the run lengthens it, and how long
   // the runs on either side of the text are is what pairs them up
-  let is_delimiter = |character: Option<char>| matches!(character, Some('*') | Some('_') | Some('~') | Some('^'));
-  holds_a_word(decoration.children.first(), |text| text.chars().next())
+  let is_delimiter = |character: Option<char>| matches!(character, Some('*') | Some('_') | Some('~'));
+  // a `^` against a word can't open or close, and unlike `_` it has no `*` to
+  // be written as instead
+  decoration.kind != TextDecorationKind::Superscript
+    && holds_a_word(decoration.children.first(), |text| text.chars().next())
     && holds_a_word(decoration.children.last(), last_unescaped_char)
     && !is_delimiter(file_text[..decoration.span.start].chars().next_back())
     && !is_delimiter(file_text[decoration.span.end..].chars().next())

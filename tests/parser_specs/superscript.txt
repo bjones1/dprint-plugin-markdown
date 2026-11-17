@@ -303,3 +303,38 @@ x^2^
     }
   ]
 }
+[[test]] escaped bracket
+\[^1] b^
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 8],
+  "text": "\\[^1] b^",
+  "children": [
+    {
+      "kind": "Paragraph",
+      "span": [0, 8],
+      "text": "\\[^1] b^",
+      "children": [
+        {
+          "kind": "Text",
+          "span": [0, 2],
+          "text": "\\["
+        },
+        {
+          "kind": "TextDecoration",
+          "span": [2, 8],
+          "text": "^1] b^",
+          "decoration": "Superscript",
+          "children": [
+            {
+              "kind": "Text",
+              "span": [3, 7],
+              "text": "1] b"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -17,8 +17,8 @@ fn main() {
     ),
   ] {
     let source = std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(path))
-  .unwrap()
-  .replace("\r\n", "\n");
+      .unwrap()
+      .replace("\r\n", "\n");
     for case in source.split("!! ").skip(1) {
       let (name, rest) = case.split_once(" !!\n").unwrap();
       let (input, _) = rest.split_once("\n\n[expect]\n").unwrap();

@@ -244,35 +244,212 @@ GitHub userid: diasjakupovkbtu
 
 #### Contributions
 
-*
-To be added
-*
+Rewrote the spec after the instructor's review, ran spec review rounds 10-12
+and implementation review rounds 3-4 on Amy's implementation, and fixed what
+they found in the spec, the code and the tests.
 
 #### Specification review rounds
 
-*
-Table showing spec review rounds
-*
+Round 10 is also in the draft section; it ran after the instructor's review,
+so it belongs here.
+
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| 10    | 5        | Rewrite after the instructor's review (663 → 162 lines, formatter only), checked against a prototype; fixed: `^` after `[` no longer opens, hard-break rule restored, openers-bottom wording, Goal config note, whitespace in the test rule |
+| 11    | 7        | Checked against the real implementation: existing `_` bugs that now also hit `^` listed, a `^` after an escaped `\[` can open, the known-differences sentence and the hard-break rationale corrected, the render check tool named |
+| 12    | 6        | Footnote-space example given its definition; tests for `^^a^^`, `x ^␣\⏎b^` and a setext heading; the `TextWrap_Always` test, not the render check, guards Goal row 4; known bug 1 says the superscript is lost; 2 findings rejected |
 
 #### Last specification review
 
-*
-LLM and prompt used
-LLM output, possibly with strikethrough
-*
+LLM: Claude Opus 5.5, run as a fresh reviewer that had not seen the earlier
+rounds. It had the repo with the implementation and the round 11 fixes,
+`main` to compare with, and `tools/superscript-render-check` to render with
+pulldown-cmark 0.13.6. The prompt also had environment notes (repo path,
+toolchain, scratch folder), left out here.
+
+<details>
+<summary>Prompt</summary>
+
+> Review `superscript-spec.md` for factual accuracy against the code and the
+> tests. Do not edit any tracked file. The implementation is now in the
+> branch. Check with evidence (command output or file:line): (1) every row of
+> the Goal and Syntax tables on the current formatter, and against
+> pulldown-cmark 0.13.6; (2) every name, file and behavior claim in "Data
+> structures" and "Changes" against the implementation; (3) every row of the
+> Tests tables against the test files; (4) anything the spec claims that is
+> wrong, unclear or missing for a reviewer who knows the existing parser.
+> Report concrete problems (claim, evidence, fix) ranked by severity, and mark
+> a finding "trivial" if it does not change behavior or meaning. Then list
+> what you verified as correct.
+>
+> Output format: a heading "Problems, most severe first" with a numbered
+> list, then "Verified correct" as a bullet list. Keep it under 700 words.
+> Use ␣ for a significant space and ⏎ for a line break in inline examples.
+
+Sent while it was running:
+
+> Addition to the review task: focus on substance, not nitpicks. Report a
+> problem only if it is a wrong or missing fact, a logic flaw, or a gap in
+> the tests. Also flag anything in the spec that is overengineered or more
+> than the change needs. Put wording or formatting remarks under one short
+> "Trivial" line at the end, not as numbered findings.
+
+</details>
+
+Output. Findings 1, 2 and 4 were reproduced by hand and applied. The tests
+from finding 2 are in `TextDecoration_Superscript.txt`. The setext one is
+`^中^⏎字⏎===`, not `^^中^⏎字⏎===`: implementation round 4 removed the `^`
+from `is_delimiter` that finding 2 aimed at, and this test covers the rule
+that replaced it.
+Finding 3 was applied as one sentence in Tests. Findings 5 and 6 are rejected
+and struck. The trivial line was left as it is.
+
+<details>
+<summary>Full review</summary>
+
+##### Problems, most severe first
+
+1. **The example for known bug 2 (footnote space) doesn't reproduce as written.** On the branch, `x ^a^ [^1] y` comes back unchanged. On `7428123`, `x _a_ [^1] y` also comes back unchanged. The space is only dropped when the footnote has a definition:
+   - `x ^a^ [^1] y⏎⏎[^1]: n` → `x ^a^[^1] y` on the branch.
+   - `x _a_ [^1] y⏎⏎[^1]: n` → `x _a_[^1] y` on main.
+
+   Fix: add `⏎⏎[^1]: n` to both examples.
+
+2. **Test gap: three items in Changes have no test that fails without them.** I reverted each one in a scratch copy and ran `specs`, `parser_specs` and `commonmark_spec_check`:
+   - **`^` in `unescaped_delimiter_runs()`**: all tests pass without it. Every test that needs the read-back check puts the break right after `^`, so the hard-break rule alone keeps them. The read-back path does matter: the branch keeps `x ^␣\⏎b^` unchanged in every `textWrap`. Without the `^` it becomes `x ^\⏎b^` and a superscript appears, which is what main does today. Add this test; it is also a missing Goal row.
+   - **`^` in `decoration_keeps_its_delimiters()`**: all tests pass without it. It matters for `^^中^⏎字⏎===`. The branch writes `# ^^中^␣字`; without the `^` it writes `# ^^中^字` and the superscript is lost. Add this test.
+   - **`^^` in `written_delimiter()`**: forcing `^` still passes. The only `^^` test ("runs") has three superscripts in one paragraph, so the read-back check fails and the paragraph is written verbatim. On its own line, `^^a^^` → `^a^`. Add `^^a^^` as a separate test.
+
+   Removing the `[` rule, its backslash count, or the hard-break rule does make a test fail.
+
+3. **Goal row 4 doesn't match the pass bar in Tests.** The render check collapses whitespace, so main's `^中^␣字` passes it: the HTML differs only by a newline vs a space. The spec counts row 4 as a rendering change, yet sets "same apart from whitespace" as the bar. Fix: say why the space is visible (browsers can drop a line break between CJK characters, not a space). Also say that the expected output in `TextDecoration_Superscript_TextWrap_Always.txt` guards row 4, not the render check.
+
+4. **Known bug 1 understates the effect.** In `# ^中^字` the closing `^` now sits inside a word, so the superscript disappears: pulldown renders `<h1>^中^字</h1>`. The `_` version loses its emphasis the same way. The bullet only mentions the lost line break.
+
+5. ~~**No test pins the known differences.** The claims hold today (checked below), but nothing guards them:~~
+   - ~~`^a .^^. b^`, `^a ~~b~ c^`, `[^a^ b` and `[^a^](/u)` format without a rendering change.~~
+   - ~~`[^a *b^ c*` → `[^a _b^ c_`.~~
+
+   ~~Also untested: `\\[^1] b^` (an even number of backslashes, so a footnote), and rows 1-3 under `always`/`never`.~~
+
+   (rejected: the known differences are limits of this change, not behavior to keep, so there is nothing to pin)
+
+6. ~~**Over-built: the render-check tool adds little.** It re-checks only the 13 inputs whose outputs the spec tests already pin. CI doesn't run it, and it can't see row 4. Either run it as a test (pulldown-cmark as a dev-dependency) or drop it from the test plan.~~ (rejected: it shows that each expected output keeps pulldown-cmark's rendering, which the spec tests alone can't show)
+
+Trivial: the Data structures formula `children.first().span().start - span.start` is `content_span(children).map_or(1, …)` in the code. Bug 3 lacks the `_` "today" example the other bullets give (on main, `_a␣␣⏎*⏎b_` also turns into a list).
+
+##### Verified correct
+
+- **Goal table.** `7428123` = `origin/main`. Rows 1-3 change rendering on main in maintain, always and never. Row 4 changes only in always/never. The branch keeps all four, and the pulldown-cmark 0.13.6 HTML is as described.
+- **Known bugs 1, 3, 4.** Branch outputs are as stated, and main writes the `^` forms back safely. The `_` forms already break on main.
+- **Regression sweep.** I generated 200k short random inputs across 5 configs. Every case that renders correctly on main but not on the branch falls under bugs 1, 3 or 4. (The inputs had no footnote definitions, so bug 2 couldn't show up.)
+- **Syntax table.** All 11 rows match both the parser ASTs in `tests/parser_specs/superscript.txt` and the pulldown-cmark 0.13.6 HTML.
+- **Known differences.**
+  - pulldown keeps one bound for both `^` and `~` (`lower_bounds[TILDES]`, parse.rs:1634/1670).
+  - This parser's key is `(byte, original_len % 3, can_open)` (inline.rs:812).
+  - From AST dumps: `^a .^^. b^` and `^a ~~b~ c^` each give one superscript here, none in pulldown.
+  - `[^a^ b` and `[^a^](/u)` get a `<sup>` in pulldown and stay text here.
+  - `[^a *b^ c*` → `[^a _b^ c_` on both the branch and main.
+- **Data structures and Changes, at the cited places.**
+  - Parser: ast.rs:133; inline.rs:336, 738-741, 780 (`^` takes the `_` branch), 880, 893.
+  - Generator: generate.rs:1597-1598, 1637, 1882-1890, 1958, 1997, 2009, 2989, 3581.
+  - Test renderer: commonmark_spec_check.rs:493.
+  - The JSON writes `"decoration": "Superscript"`.
+  - pulldown also nests `^^^a^^^` as a one-caret superscript around a two-caret one.
+- **Hard-break rule.** Without it, only "moving superscript" fails (`^\⏎.^.^ !`), and `x ^␣␣⏎b^` is still kept by the read-back check, as the spec says.
+- **Tests tables.** They match the files: the 10 rows give 11 cases, and `TextWrap_Always` has the stated config and 2 cases. Full `cargo test` passes, and the render-check tool reports 13 cases.
+
+</details>
 
 #### Implementation review rounds
 
-*
-Table showing implementation review rounds
-*
+Rounds 1-2 are Amy's (see her section).
+
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| 3     | 6        | A `^` after an escaped `\[` can open (code and tests); the `unwrap()` in `written_delimiter()` removed; existing `_` bugs that now also hit `^` listed in the spec; comments and the render check tool's formatting fixed |
+| 4     | 3        | With `wrapUnspacedScripts` a line break next to a superscript is no longer dropped (`decoration_keeps_its_delimiters()` is false for a superscript); tests for `^^a^^`, `x ^␣\⏎b^` and a setext heading; the `[` check reads the delimiter stack instead of counting backslashes; one sub-point rejected |
 
 #### Last Implementation review
 
-*
-LLM and prompt used
-LLM output, possibly with strikethrough
-*
+LLM: Claude Opus 5.5, run as a fresh reviewer, with the same tools as the
+spec review. Environment notes are left out of the prompt here as well.
+
+<details>
+<summary>Prompt</summary>
+
+> Review the superscript implementation (`git diff 82d6034 -- src tests tools
+> .gitignore`) against `superscript-spec.md`. Do not edit any tracked file;
+> scratch copies are fine. Check with evidence (command output or
+> file:line): (1) does the code do what the spec's "Changes" section says,
+> with nothing missing and nothing extra; (2) bugs: inputs where the formatter
+> now creates, removes or moves a superscript, changes output it did not
+> change before, or panics. Compare the rendering of input and output with
+> pulldown-cmark, and compare with `main` where useful; (3) do the tests cover
+> every row of the spec's Tests tables, and does `cargo test --locked` pass;
+> (4) does the code follow the style of the surrounding code. Report concrete
+> problems (location, failing input, evidence, fix) ranked by severity, and
+> mark a finding "trivial" if it does not change behavior. Then list what you
+> verified as correct.
+>
+> Output format: a heading "Problems, most severe first" with a numbered
+> list, then "Verified correct" as a bullet list. Keep it under 700 words.
+> Use ␣ for a significant space and ⏎ for a line break in inline examples.
+
+Sent while it was running:
+
+> Addition to the review task: focus on substance, not nitpicks. Report a
+> problem only if it is a logic bug, a real code-style problem (not matching
+> the surrounding code), or a gap in the tests. Also flag overengineering:
+> code that could be simpler, duplicates an existing helper, or does more
+> than the spec needs. Put minor remarks under one short "Trivial" line at
+> the end, not as numbered findings.
+
+</details>
+
+Output. All three findings were reproduced and applied. For finding 1, the
+setext heading test fails without the new rule, so no separate
+`wrapUnspacedScripts` test was added. With that rule, `^` is no longer needed
+in `is_delimiter` and was removed; on the reviewer's fuzz inputs this adds no
+rendering change against `main`. The `run_can_open()`/`run_can_close()` part
+of finding 2 is rejected and struck. The trivial line was left; its setext
+case is a `_` bug that `main` has too.
+
+<details>
+<summary>Full review</summary>
+
+##### Problems, most severe first
+
+1. **wrapUnspacedScripts removes a superscript (logic bug, not in the spec's known list).** `src/generation/generate.rs`, `decoration_keeps_its_delimiters` (~3571), called by `drops_break_between` (line 351) through `can_be_written_beside`.
+   - Input with `wrapUnspacedScripts: true` and textWrap always or never: `^中^⏎字` → `^中^字`. Same for `字⏎^中^` → `字^中^` and `^a 中^⏎字` → `^a 中^字`.
+   - Evidence: pulldown-cmark renders the output as `<p>^中^字</p>`, so the superscript is gone. Main writes `^中^ 字`, which keeps it. `_中_⏎字` stays safe because `resolve()` rewrites an in-word `_` as `*`. Superscript returns early from `resolve()`, so `^` has no such fallback, yet the function still lets the line break be dropped.
+   - Fix, checked in a scratch copy (`cargo test --locked` passes): start `decoration_keeps_its_delimiters` with `decoration.kind != TextDecorationKind::Superscript &&`. The output becomes `^中^ 字`. The same fix also clears known bug 1 under the default config (`^中^⏎字⏎===` → `# ^中^ 字`). The textWrap always variant of that bug stays broken.
+   - Add a spec test with `wrapUnspacedScripts: true`.
+
+2. **Test gaps (mutation testing).** I reverted each of these changes on its own, and `cargo test` still passed:
+   - `^` in `unescaped_delimiter_runs`: without it, `x ^␣\⏎b^` → `x ^\⏎b^`, which creates a superscript. The spec row `x ^␣␣⏎b^` is also caught by the hard-break rule, so it doesn't test this change on its own. Add `x ^␣\⏎b^` (expected unchanged).
+   - The `"^^"` arm in `gen_text_decoration` (removing it falls through to `~~`), and `resolve`/`written_delimiter` always returning `"^"`: `^^a^^` is only tested inside a paragraph where the read-back check fails and the file text is written as-is. Add a test with `^^a^^` on its own.
+   - `^` in `is_delimiter` (in `decoration_keeps_its_delimiters`) ~~and `^` in `run_can_open`/`run_can_close`~~: no test fails without them. The first only matters under wrapUnspacedScripts, so the test from problem 1 is the natural place to cover it. (`run_can_open`/`run_can_close` part rejected: reverting it changed no output on the round's fuzz inputs, so no test can pin it)
+   - These were caught: the hard-break rule, both parts of `after_bracket`, and `written_delimiter` reading the file text.
+
+3. **`after_bracket` works out escape state again (simplification).** `src/parser/inline.rs:735-738` counts the backslashes before `[`. But `parse_backslash` has already consumed `\[`, and an unescaped `[` pushes a Link/Image delimiter ending at `start` (`parse_open_bracket`, ~581). This checks the same thing from parser state, like `last_bracket()` does: `self.delimiters.last().is_some_and(|d| matches!(d.kind, DelimiterKind::Link | DelimiterKind::Image) && d.end == start)`. I swapped it in a scratch copy and the full `cargo test --locked` passes. The current code is correct (`\\[^a^` does not open a superscript, `\[^a^` does).
+
+Trivial: The hard-break rule also applies after an escaped `\^` or a closing caret: `^a^␣␣⏎b` keeps its two spaces where main wrote `\`. That is harmless. `map_or(1, …)` in `written_delimiter` handles an empty superscript, which can't happen. rustfmt is not installed, so formatting is unchecked. The spec's list of shared `_` bugs misses one: with textWrap always and width 20, `~> \^^)\⏎=== _a_ab^^*^^^^!!(^^` wraps so `===` ends up alone on a line and becomes a setext heading. Main does the same with `__`.
+
+##### Verified correct
+
+- `cargo test --locked` passes: 194 spec, 160 unit, 40 parser-spec, 10, 9, 8, 2 and doc tests. `tools/superscript-render-check` passes 13/13. Clippy `--all-targets` is clean.
+- Every item in the spec's "Changes" section is present: the parser arm, `after_bracket`, the `wrap_emphasis` kind and run length, the ast variant, the `gen_text_decoration` arms, the `resolve` early return, `written_delimiter`, `unescaped_delimiter_runs`, `run_can_open`/`run_can_close`, the hard-break rule, `is_delimiter`, and the test helper's `"sup"`. Nothing extra beyond the tool and `.gitignore` line the spec mentions.
+- Tests tables: all 11 Syntax rows have a parser test, and all formatter rows have a spec test. One row is split in two, and the CJK and wrapping rows are in `TextDecoration_Superscript_TextWrap_Always.txt`.
+- Differential fuzzing against main (82d6034): about 95k random inputs × 11 configs.
+  - No panics or errors, and no output change for any input without `^`.
+  - Every rendering regression falls into the spec's four known bugs shared with `_`, each reproduced on main with `_`. Variants seen: a tab before `[^1]`, and `^a␣␣⏎\⏎b^` under doubleSpace. The only exceptions are problem 1 and the setext case in the Trivial line.
+  - The only other output change seen is a different wrap point under wrapUnspacedScripts, which only adds a space between CJK characters, as that option already does. No superscript is lost.
+- The known pulldown-cmark differences behave as the spec documents: `^a .^^. b^`, `^a ~~b~ c^`, `[^a^ b` and `[^a^](/u)` render the same before and after formatting. `[^a *b^ c*` changes, as the spec says.
+- The goal inputs are now formatted safely: `^a *b^ c*`, `x ^␣␣⏎b^`, `^^a .^␣␣⏎b`, and `^中^⏎字` under always/never with wrapUnspacedScripts off. `^^^^a^^^^` and `^^^^^a^^^^^` come back unchanged.
+- The style matches the surrounding code: lowercase `//` comments, `--` dashes, lines ≤120, the same match-arm layout.
+
+</details>
 
 ### Amy Smith
 
