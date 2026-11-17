@@ -1,0 +1,97 @@
+!! spaces !!
+a ^b c^ d
+
+[expect]
+a ^b c^ d
+
+!! runs !!
+^^a^^ and ^^^a^^^ and ^bar^^
+
+[expect]
+^^a^^ and ^^^a^^^ and ^bar^^
+
+!! intraword !!
+x^2^ and 1^st^ place
+
+[expect]
+x^2^ and 1^st^ place
+
+!! nested !!
+*^a^* and ^*a*^
+
+[expect]
+_^a^_ and ^_a_^
+
+!! crossing !!
+^a *b^ c*
+
+[expect]
+^a *b^ c*
+
+!! keep hard break !!
+x ^  
+b^
+
+[expect]
+x ^  
+b^
+
+!! keep closing hard break !!
+^^a .^  
+b
+
+[expect]
+^^a .^  
+b
+
+!! footnote after break !!
+x ^  
+[^1] b^
+
+[expect]
+x ^  
+[^1] b^
+
+!! footnote before break !!
+^^[^1]^  
+b
+
+[expect]
+^^[^1]^  
+b
+
+!! moving superscript !!
+^   
+.^.^ !
+
+[expect]
+^  
+.^.^ !
+
+!! escaped bracket !!
+a \[^b *c^ d*
+
+[expect]
+a \[^b *c^ d*
+
+!! two carets !!
+^^a^^
+
+[expect]
+^^a^^
+
+!! keep backslash break !!
+x ^ \
+b^
+
+[expect]
+x ^ \
+b^
+
+!! setext heading !!
+^中^
+字
+===
+
+[expect]
+# ^中^ 字

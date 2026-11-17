@@ -490,6 +490,7 @@ impl<'a> Renderer<'a> {
           TextDecorationKind::Emphasis => "em",
           TextDecorationKind::Strong => "strong",
           TextDecorationKind::Strikethrough => "del",
+          TextDecorationKind::Superscript => "sup",
         };
         self.out.push_str(&format!("<{tag}>"));
         self.render_inlines(decoration.children);

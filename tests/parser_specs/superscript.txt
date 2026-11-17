@@ -1,0 +1,340 @@
+[[test]] spaces
+a ^b c^ d
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 9],
+  "text": "a ^b c^ d",
+  "children": [
+    {
+      "kind": "Paragraph",
+      "span": [0, 9],
+      "text": "a ^b c^ d",
+      "children": [
+        {
+          "kind": "Text",
+          "span": [0, 1],
+          "text": "a"
+        },
+        {
+          "kind": "TextDecoration",
+          "span": [2, 7],
+          "text": "^b c^",
+          "decoration": "Superscript",
+          "children": [
+            {
+              "kind": "Text",
+              "span": [3, 6],
+              "text": "b c"
+            }
+          ]
+        },
+        {
+          "kind": "Text",
+          "span": [8, 9],
+          "text": "d"
+        }
+      ]
+    }
+  ]
+}
+[[test]] intraword
+x^2^
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 4],
+  "text": "x^2^",
+  "children": [
+    {
+      "kind": "Paragraph",
+      "span": [0, 4],
+      "text": "x^2^",
+      "children": [
+        {
+          "kind": "Text",
+          "span": [0, 4],
+          "text": "x^2^"
+        }
+      ]
+    }
+  ]
+}
+[[test]] double
+^^a^^
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 5],
+  "text": "^^a^^",
+  "children": [
+    {
+      "kind": "Paragraph",
+      "span": [0, 5],
+      "text": "^^a^^",
+      "children": [
+        {
+          "kind": "TextDecoration",
+          "span": [0, 5],
+          "text": "^^a^^",
+          "decoration": "Superscript",
+          "children": [
+            {
+              "kind": "Text",
+              "span": [2, 3],
+              "text": "a"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+[[test]] triple
+^^^a^^^
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 7],
+  "text": "^^^a^^^",
+  "children": [
+    {
+      "kind": "Paragraph",
+      "span": [0, 7],
+      "text": "^^^a^^^",
+      "children": [
+        {
+          "kind": "TextDecoration",
+          "span": [0, 7],
+          "text": "^^^a^^^",
+          "decoration": "Superscript",
+          "children": [
+            {
+              "kind": "TextDecoration",
+              "span": [1, 6],
+              "text": "^^a^^",
+              "decoration": "Superscript",
+              "children": [
+                {
+                  "kind": "Text",
+                  "span": [3, 4],
+                  "text": "a"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+[[test]] leftover
+^bar^^
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 6],
+  "text": "^bar^^",
+  "children": [
+    {
+      "kind": "Paragraph",
+      "span": [0, 6],
+      "text": "^bar^^",
+      "children": [
+        {
+          "kind": "TextDecoration",
+          "span": [0, 5],
+          "text": "^bar^",
+          "decoration": "Superscript",
+          "children": [
+            {
+              "kind": "Text",
+              "span": [1, 4],
+              "text": "bar"
+            }
+          ]
+        },
+        {
+          "kind": "Text",
+          "span": [5, 6],
+          "text": "^"
+        }
+      ]
+    }
+  ]
+}
+[[test]] escaped
+\^a^
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 4],
+  "text": "\\^a^",
+  "children": [
+    {
+      "kind": "Paragraph",
+      "span": [0, 4],
+      "text": "\\^a^",
+      "children": [
+        {
+          "kind": "Text",
+          "span": [0, 4],
+          "text": "\\^a^"
+        }
+      ]
+    }
+  ]
+}
+[[test]] code
+`x^2^`
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 6],
+  "text": "`x^2^`",
+  "children": [
+    {
+      "kind": "Paragraph",
+      "span": [0, 6],
+      "text": "`x^2^`",
+      "children": [
+        {
+          "kind": "Code",
+          "span": [0, 6],
+          "text": "`x^2^`",
+          "content": "x^2^"
+        }
+      ]
+    }
+  ]
+}
+[[test]] nested
+*^a^*
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 5],
+  "text": "*^a^*",
+  "children": [
+    {
+      "kind": "Paragraph",
+      "span": [0, 5],
+      "text": "*^a^*",
+      "children": [
+        {
+          "kind": "TextDecoration",
+          "span": [0, 5],
+          "text": "*^a^*",
+          "decoration": "Emphasis",
+          "children": [
+            {
+              "kind": "TextDecoration",
+              "span": [1, 4],
+              "text": "^a^",
+              "decoration": "Superscript",
+              "children": [
+                {
+                  "kind": "Text",
+                  "span": [2, 3],
+                  "text": "a"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+[[test]] crossing
+^a *b^ c*
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 9],
+  "text": "^a *b^ c*",
+  "children": [
+    {
+      "kind": "Paragraph",
+      "span": [0, 9],
+      "text": "^a *b^ c*",
+      "children": [
+        {
+          "kind": "TextDecoration",
+          "span": [0, 6],
+          "text": "^a *b^",
+          "decoration": "Superscript",
+          "children": [
+            {
+              "kind": "Text",
+              "span": [1, 5],
+              "text": "a *b"
+            }
+          ]
+        },
+        {
+          "kind": "Text",
+          "span": [7, 9],
+          "text": "c*"
+        }
+      ]
+    }
+  ]
+}
+[[test]] footnote
+[^1] b^
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 7],
+  "text": "[^1] b^",
+  "children": [
+    {
+      "kind": "Paragraph",
+      "span": [0, 7],
+      "text": "[^1] b^",
+      "children": [
+        {
+          "kind": "Text",
+          "span": [0, 7],
+          "text": "[^1] b^"
+        }
+      ]
+    }
+  ]
+}
+[[test]] escaped bracket
+\[^1] b^
+[[ast]]
+{
+  "kind": "SourceFile",
+  "span": [0, 8],
+  "text": "\\[^1] b^",
+  "children": [
+    {
+      "kind": "Paragraph",
+      "span": [0, 8],
+      "text": "\\[^1] b^",
+      "children": [
+        {
+          "kind": "Text",
+          "span": [0, 2],
+          "text": "\\["
+        },
+        {
+          "kind": "TextDecoration",
+          "span": [2, 8],
+          "text": "^1] b^",
+          "decoration": "Superscript",
+          "children": [
+            {
+              "kind": "Text",
+              "span": [3, 7],
+              "text": "1] b"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

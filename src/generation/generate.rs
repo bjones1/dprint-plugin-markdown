@@ -229,8 +229,8 @@ fn push_delimiter_runs(nodes: &[Node], context: &Context, runs: &mut DelimiterRu
   }
 }
 
-/// Pushes each run of `*` or `_` within the text at `span` that can open or
-/// close emphasis where it sits, which is decided by the characters of the
+/// Pushes each run of `*`, `_` or `^` within the text at `span` that can open
+/// or close emphasis where it sits, which is decided by the characters of the
 /// file on either side of the run.
 fn push_pairable_runs(span: Span, file_text: &str, pairable: &mut Vec<(Span, char)>) {
   for (start, end, c) in unescaped_delimiter_runs(span.text(file_text)) {
@@ -1594,6 +1594,8 @@ fn gen_text_decoration<'a>(text: &TextDecoration<'a>, context: &mut Context<'a>)
     "**" => sc!("**"),
     "__" => sc!("__"),
     "~" => sc!("~"),
+    "^" => sc!("^"),
+    "^^" => sc!("^^"),
     _ => sc!("~~"),
   };
 
@@ -1632,6 +1634,7 @@ fn decoration_delimiter(decoration: &TextDecoration, parent_content: Option<Span
       ),
       TextDecorationKind::Strong => ("**", "__", context.configuration.strong_kind == StrongKind::Underscores),
       TextDecorationKind::Strikethrough => return "~~",
+      TextDecorationKind::Superscript => return written_delimiter(decoration, context),
     };
     // an underscore isn't read as a delimiter at all within a word, so only
     // asterisks will do there
@@ -1876,6 +1879,15 @@ fn written_delimiter(decoration: &TextDecoration, context: &Context) -> &'static
     (TextDecorationKind::Emphasis, _) => "*",
     (TextDecorationKind::Strong, Some(b'_')) => "__",
     (TextDecorationKind::Strong, _) => "**",
+    (TextDecorationKind::Superscript, _) => {
+      // the carets are counted from where the content starts, not read off the
+      // file text: `^^^a^^^` is a one-caret superscript around a two-caret one
+      if content_span(decoration.children).map_or(1, |content| content.start - decoration.span.start) == 2 {
+        "^^"
+      } else {
+        "^"
+      }
+    }
     (TextDecorationKind::Strikethrough, _) => {
       if context.file_text[decoration.span.start..].starts_with("~~") {
         "~~"
@@ -1928,8 +1940,8 @@ fn can_pair_with_delimiter(text: &str, delimiter: char) -> bool {
     })
 }
 
-/// Each run of `*` or `_` within the text that a backslash doesn't escape, as
-/// where it starts and ends and the character it's made of.
+/// Each run of `*`, `_` or `^` within the text that a backslash doesn't
+/// escape, as where it starts and ends and the character it's made of.
 fn unescaped_delimiter_runs(text: &str) -> impl Iterator<Item = (usize, usize, char)> + '_ {
   let mut chars = text.char_indices().peekable();
   let mut is_escaped = false;
@@ -1943,7 +1955,7 @@ fn unescaped_delimiter_runs(text: &str) -> impl Iterator<Item = (usize, usize, c
         is_escaped = true;
         continue;
       }
-      if c != '*' && c != '_' {
+      if c != '*' && c != '_' && c != '^' {
         continue;
       }
       let mut end = start + 1;
@@ -1982,7 +1994,7 @@ fn run_only_opens(surroundings: Surroundings, delimiter: char) -> bool {
 /// emphasis.
 fn run_can_open(surroundings: Surroundings, delimiter: char) -> bool {
   let flanking = Flanking::new(surroundings);
-  if delimiter == '_' {
+  if delimiter == '_' || delimiter == '^' {
     // `_` can't be used within a word
     flanking.left && (!flanking.right || flanking.before_punctuation)
   } else {
@@ -1994,7 +2006,7 @@ fn run_can_open(surroundings: Surroundings, delimiter: char) -> bool {
 /// emphasis.
 fn run_can_close(surroundings: Surroundings, delimiter: char) -> bool {
   let flanking = Flanking::new(surroundings);
-  if delimiter == '_' {
+  if delimiter == '_' || delimiter == '^' {
     flanking.right && (!flanking.left || flanking.after_punctuation)
   } else {
     flanking.right
@@ -2973,14 +2985,18 @@ fn gen_hard_break<'a>(hard_break: &HardBreak, position: NodePosition, context: &
     // the line, so a backslash is written where there isn't -- a line holding
     // nothing but whitespace ends the paragraph rather than breaking a line
     // within it
-    let writes_double_space = if context.is_preserving_decorations() {
-      // the break is written as it was, since the delimiters that may sit
-      // against it are being written as they were and are read by it
-      !context.file_text[hard_break.span.start..].starts_with('\\')
-    } else {
-      context.configuration.hard_break_kind == HardBreakKind::DoubleSpace
-        && !context.is_line_start(hard_break.span.start)
-    };
+    let writes_double_space =
+      if context.is_preserving_decorations() || context.file_text[..hard_break.span.start].ends_with('^') {
+        // the break is written as it was, since the delimiters that may sit
+        // against it are being written as they were and are read by it. A
+        // break right after a `^` is also written as it was: a backslash there
+        // can let a `^` left as text open a superscript, and moving one
+        // without changing its text gets past the read-back check
+        !context.file_text[hard_break.span.start..].starts_with('\\')
+      } else {
+        context.configuration.hard_break_kind == HardBreakKind::DoubleSpace
+          && !context.is_line_start(hard_break.span.start)
+      };
     if writes_double_space {
       // the two spaces sit at the end of the line, where they take no visible
       // width, so they're written as zero columns to keep them out of the
@@ -3563,7 +3579,10 @@ fn decoration_keeps_its_delimiters(decoration: &TextDecoration, file_text: &str)
   // a delimiter character written against the run lengthens it, and how long
   // the runs on either side of the text are is what pairs them up
   let is_delimiter = |character: Option<char>| matches!(character, Some('*') | Some('_') | Some('~'));
-  holds_a_word(decoration.children.first(), |text| text.chars().next())
+  // a `^` against a word can't open or close, and unlike `_` it has no `*` to
+  // be written as instead
+  decoration.kind != TextDecorationKind::Superscript
+    && holds_a_word(decoration.children.first(), |text| text.chars().next())
     && holds_a_word(decoration.children.last(), last_unescaped_char)
     && !is_delimiter(file_text[..decoration.span.start].chars().next_back())
     && !is_delimiter(file_text[decoration.span.end..].chars().next())
