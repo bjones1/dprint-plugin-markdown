@@ -78,8 +78,9 @@ without a change in rendering:
 
 ## Data structures
 
-No new types. The existing `TextDecorationKind` (`src/parser/ast.rs`), the
-`kind` field of a `TextDecoration`, gets one more variant:
+No new AST types or fields. Add one variant to the existing
+`TextDecorationKind` enum (`src/parser/ast.rs`), which is used by the `kind`
+field of a `TextDecoration`:
 
 ```rust
 pub enum TextDecorationKind {
@@ -137,6 +138,9 @@ Tests, `tests/commonmark_spec_check.rs`: its HTML renderer maps `Superscript`
 to `sup` (the `match` must cover the new kind).
 
 ## Tests
+
+Unless shown otherwise, "unchanged" permits the formatter's normal final
+newline. Trailing spaces representing hard breaks are significant.
 
 Parser, new file `tests/parser_specs/superscript.txt`: one test per row of
 the Syntax table, with the AST (`UPDATE=1` writes it; check it by hand).

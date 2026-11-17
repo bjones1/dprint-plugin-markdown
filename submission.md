@@ -280,16 +280,22 @@ GitHub userid: Kenzpie
 
 #### Contributions
 
+Added review round 11 to the updated Superscript Spec.
 Created first implementation of the Superscript Spec and ran the first two rounds of test-oriented LLM review.
 
 #### Specification review rounds
 
-Haven't run any yet.
-Will add after Dias formats his spec changes after Dr. Jones's last review into '# of rounds' chart.
+| Round | Findings | Main changes made |
+| ----- | -------- | ----------------- |
+| 11 | 2 | Clarifies AST types/fields aren't allowed and specifies both LF and CRLF test-file line endings should be accepted. |
 
 #### Last specification review
 
-^^to be added
+LLM: GPT-6.1 Sol Light.
+
+Prompt: "Please conduct another review round to further polish our spec."
+
+Output: "The spec is already detailed enough to support an implementation. However, some wording can be clarified to prevent future confusion."
 
 #### Implementation review rounds
 
