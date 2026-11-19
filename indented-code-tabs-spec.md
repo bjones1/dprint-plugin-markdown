@@ -34,13 +34,15 @@ Unrelated options keep their meaning: `codeBlock.useTabs` and
 
 - **Code indent**: the four columns of indentation that make a line part of an
   indented code block, as defined by CommonMark.
-- **Container prefix**: everything written on a line before the code indent:
-  list continuation spaces, block quote markers (`> `), and footnote body
-  indentation. A top-level code block has an empty container prefix.
+- **Container prefix**: everything the formatter writes on a line before the
+  code indent: list and definition continuation spaces, footnote body
+  indentation, and block quote markers. Nested block quotes are written as one
+  `>` each with a single space after the last (`>> `), plus a space before any
+  indentation that separates two of them (`>   > `). A top-level code block has
+  an empty container prefix.
 - **Start column**: the column where the code indent begins, i.e. the width of
   the container prefix. Columns are counted from 0.
-- **Blank line**: a line of the code block that holds nothing but spaces and
-  tabs.
+- **Empty line**: a line of the code text with no characters at all.
 
 ## Algorithm
 
@@ -61,10 +63,11 @@ For each code block the formatter is about to write:
    Otherwise it is four spaces (U+0020).
 
 3. **Write each line** of the code block:
-   - Non-blank line: container prefix, then the code indent, then the code
-     text.
-   - Blank line: no code indent; the rest of the line is written as it is
+   - Empty line: no code indent; the rest of the line is written as it is
      today.
+   - Any other line, including one holding only whitespace: container prefix,
+     then the code indent, then the code text. This matches how the four-space
+     indent is written today.
 
 All lines of one code block use the same code indent. This holds for the first
 line of a list item too: step 1 already sends every item whose marker is not
@@ -84,7 +87,8 @@ both is parsed the same way, and the output is decided only by steps 1–3.
 CommonMark ([Tabs](https://spec.commonmark.org/0.31.2/#tabs)) expands a tab to
 the next multiple of 4 columns, counted from the start of the line, not from
 the start of the container. A tab therefore supplies four columns of
-indentation only when it begins at a multiple of 4:
+indentation only when it begins at a multiple of 4. With the default
+`list.indentKind`:
 
 | Container prefix           | Start column | Code indent with `useTabs: true` |
 | -------------------------- | ------------ | -------------------------------- |
@@ -93,8 +97,11 @@ indentation only when it begins at a multiple of 4:
 | `1. ` list item            | 3            | four spaces                      |
 | `10. ` list item           | 4            | tab                              |
 | `> ` block quote           | 2            | four spaces                      |
-| `> > ` nested block quote  | 4            | tab                              |
+| `>> ` nested block quote   | 3            | four spaces                      |
+| `>>> ` block quote, 3 deep | 4            | tab                              |
+| `- > ` quote in list item  | 4            | tab                              |
 | `- ` inside `- ` (nested)  | 4            | tab                              |
+| `: ` definition            | 2            | four spaces                      |
 | `[^1]: ` footnote body     | 4            | tab                              |
 
 Writing a tab at column 2 would reach only column 4, two columns short of a code
@@ -138,24 +145,25 @@ document's meaning in every container.
 
 1. **CommonMark oracle.** `tests/commonmark_spec_check.rs` formats every
    CommonMark spec example and checks that the formatted output still renders
-   to the spec's HTML. Run it with `indentedCode.useTabs: true`; it must pass
-   with the same known-failure list as with the option off. This proves the
-   tab output means the same as the input.
+   to the spec's HTML. Setting `SPEC_INDENTED_CODE_TABS=1` turns the option on;
+   the check must pass with the same known-failure list as with the option off.
+   This proves the tab output means the same as the input.
 
 2. **Spec tests** in `tests/specs/CodeBlocks/`, each with the option on:
    - top-level block written with spaces, with tabs, and mixed → one tab;
-   - code text containing its own tabs and deeper indentation;
-   - blank lines inside the block → empty lines;
-   - block in `- ` item and `> ` quote → four spaces;
-   - block in `10. ` item, `> > ` quote, nested `- - ` item and footnote
-     body → tab;
+   - code text containing its own tabs, deeper indentation, and a line of
+     only spaces;
+   - empty lines inside the block → stay empty;
+   - every row of the container table above, plus block quotes separated by a
+     list (`> - > `, `> 10. > `) and a block quote in a footnote body;
+   - a list item that starts with the code block (tab on the marker line);
    - block directly after a list → fenced, no tab;
-   - fenced input → unchanged.
+   - fenced input → indentation inside it unchanged.
 
-3. **Idempotence.** Formatting each spec test output a second time gives the
-   same text.
+   The spec test runner formats each expected output a second time
+   (`format_twice`), which checks idempotence.
 
-4. **Default unchanged.** With the option off, all existing tests pass
+3. **Default unchanged.** With the option off, all existing tests pass
    unmodified.
 
 ## Implementation Notes
@@ -167,7 +175,9 @@ document's meaning in every container.
   the code indent through `with_indent_times(items, 4)`, and the printer always
   indents with spaces (`use_tabs: false` in `format_text.rs`). For the tab case
   the indent must instead be emitted as a `Signal::Tab` at the start of each
-  non-blank line (including the first line of a list item, which is currently
-  written as an explicit `"    "`). The start column is the list/footnote
-  indentation plus the width of any block quote markers, which are written by
-  `gen_block_quote` and are not part of the generator's indent level.
+  non-empty line (including the first line of a list item, which is currently
+  written as an explicit `"    "`).
+- Start column: the generator's `indent_level` covers list and definition
+  indentation but not footnote bodies or block quote markers, so the context
+  also tracks footnote indentation and adds the marker widths described under
+  Definitions, mirroring `gen_block_quote_markers`.
