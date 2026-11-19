@@ -18,7 +18,7 @@ Created specification document with behavior descriptions, examples, and impleme
 
 #### Build and run test
 
-The project successfully compiled with `cargo build` on Windows 11 using Rust 1.82.0. The build completed without errors, producing the dprint-plugin-markdown library. Ran `cargo test` and all existing tests passed (1,247 tests across parser, formatter, and integration test suites). The project is ready for implementation of the new `indentedCode.useTabs` feature.
+Prompting Claude Opus 5.5 with "Verify that you can build and run the project in the current git repo." produced: the repo pins Rust 1.98.0 in `rust-toolchain.toml`, which rustup installed (MSVC toolchain, Windows 11). `cargo build` finished successfully in 35 s with one harmless `linker_messages` warning (the MSVC linker reporting the generated `.lib`/`.exp` files). `cargo test` passed with 0 failures: 160 unit tests, 22 integration tests (including the CommonMark spec check), 2 doc tests, and 239 spec-file tests (192 formatter spec files under `tests/specs` and 47 parser/HTML parser spec files).
 
 #### Specification review rounds
 
@@ -55,7 +55,7 @@ Reviewed specification structure and CommonMark compliance; contributed to desig
 
 #### Build and run test
 
-Successfully verified compilation with `cargo build` on Windows 11 with Rust 1.82.0. The project built without warnings or errors. Test suite execution with `cargo test` completed successfully with all 1,247 tests passing. Development environment is properly configured for Rust development.
+Prompting Claude Opus 5.5 with "Verify that you can build and run the project in the current git repo." produced: the repo pins Rust 1.98.0 in `rust-toolchain.toml`, which rustup installed (MSVC toolchain, Windows 11). `cargo build` finished successfully in 35 s with one harmless `linker_messages` warning (the MSVC linker reporting the generated `.lib`/`.exp` files). `cargo test` passed with 0 failures: 160 unit tests, 22 integration tests (including the CommonMark spec check), 2 doc tests, and 239 spec-file tests (192 formatter spec files under `tests/specs` and 47 parser/HTML parser spec files).
 
 #### Specification review rounds
 
@@ -92,7 +92,7 @@ Developed testing strategy and success criteria; contributed to configuration sc
 
 #### Build and run test
 
-Compilation successful using `cargo build` on Windows 11, Rust toolchain version 1.82.0. All dependencies resolved correctly and the markdown plugin library built without issues. Executed `cargo test` with full test suite passing (1,247 tests). Project structure is well-organized and ready for feature development.
+Prompting Claude Opus 5.5 with "Verify that you can build and run the project in the current git repo." produced: the repo pins Rust 1.98.0 in `rust-toolchain.toml`, which rustup installed (MSVC toolchain, Windows 11). `cargo build` finished successfully in 35 s with one harmless `linker_messages` warning (the MSVC linker reporting the generated `.lib`/`.exp` files). `cargo test` passed with 0 failures: 160 unit tests, 22 integration tests (including the CommonMark spec check), 2 doc tests, and 239 spec-file tests (192 formatter spec files under `tests/specs` and 47 parser/HTML parser spec files).
 
 #### Specification review rounds
 
