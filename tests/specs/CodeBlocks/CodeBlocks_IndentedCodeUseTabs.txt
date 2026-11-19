@@ -1,0 +1,280 @@
+~~ indentedCode.useTabs: true ~~
+!! should write a top-level indented code block written with spaces with a tab !!
+Text.
+
+    code
+      more
+
+[expect]
+Text.
+
+	code
+	  more
+
+!! should write a top-level indented code block written with tabs with a tab !!
+Text.
+
+	code
+		more
+
+[expect]
+Text.
+
+	code
+		more
+
+!! should write a block written with mixed indentation with a tab !!
+Text.
+
+    one
+	two
+  	three
+
+[expect]
+Text.
+
+	one
+	two
+	three
+
+!! should keep the tabs within the code text !!
+Text.
+
+    a	b
+	c		d
+
+[expect]
+Text.
+
+	a	b
+	c		d
+
+!! should leave blank lines within the block empty !!
+Text.
+
+    one
+
+    two
+	
+    three
+
+[expect]
+Text.
+
+	one
+
+	two
+
+	three
+
+!! should write spaces in a list item whose content starts at column 2 !!
+- item
+
+      code
+
+[expect]
+- item
+
+      code
+
+!! should write spaces in a list item whose content starts at column 3 !!
+1. item
+
+       code
+
+[expect]
+1. item
+
+       code
+
+!! should write a tab in a list item whose content starts at column 4 !!
+10. item
+
+        code
+        more
+
+[expect]
+10. item
+
+    	code
+    	more
+
+!! should write a tab in a nested list item whose content starts at column 4 !!
+- a
+  - b
+
+        code
+
+[expect]
+- a
+  - b
+
+    	code
+
+!! should write a tab on the marker line of a list item that starts with code at column 4 !!
+10.     code
+        more
+
+[expect]
+10. 	code
+    	more
+
+!! should write spaces on the marker line of a list item that starts with code at column 2 !!
+-     code
+      more
+
+[expect]
+-     code
+      more
+
+!! should write spaces in a block quote !!
+> text
+>
+>     code
+
+[expect]
+> text
+>
+>     code
+
+!! should write spaces in a nested block quote whose content starts at column 3 !!
+>> text
+>>
+>>     code
+
+[expect]
+>> text
+>>
+>>     code
+
+!! should write a tab in a block quote nested three deep whose content starts at column 4 !!
+>>> text
+>>>
+>>>     code
+
+[expect]
+>>> text
+>>>
+>>> 	code
+
+!! should write a tab in a block quote within a list item !!
+- > text
+  >
+  >     code
+
+[expect]
+- > text
+  >
+  > 	code
+
+!! should write a tab in a list item within a block quote !!
+> - text
+>
+>       code
+
+[expect]
+> - text
+>
+>   	code
+
+!! should write a tab in a footnote body !!
+Text[^1].
+
+[^1]: Note.
+
+        code
+
+[expect]
+Text[^1].
+
+[^1]: Note.
+
+    	code
+
+!! should not write a tab in a block written fenced after a list !!
+ -    one
+
+     two
+
+[expect]
+- one
+
+```
+two
+```
+
+!! should leave the indentation within a fenced code block as spaces !!
+```
+code
+    more
+```
+
+[expect]
+```
+code
+    more
+```
+
+!! should count the space between block quotes a list separates !!
+> - > text
+>   >
+>   >     code
+
+[expect]
+> - > text
+>   >
+>   >     code
+
+!! should write a tab where a list separates block quotes and the content starts at column 8 !!
+> 10. > text
+>     >
+>     >     code
+
+[expect]
+> 10. > text
+>     >
+>     > 	code
+
+!! should write spaces in a definition whose content starts at column 2 !!
+Term
+: definition
+
+      code
+
+[expect]
+Term
+: definition
+
+      code
+
+!! should write spaces in a block quote within a footnote body !!
+Text[^1].
+
+[^1]: Note.
+
+    > quote
+    >
+    >     code
+
+[expect]
+Text[^1].
+
+[^1]: Note.
+
+    > quote
+    >
+    >     code
+
+!! should keep a line of only spaces beyond the code indent after the tab !!
+Text.
+
+    one
+      
+    two
+
+[expect]
+Text.
+
+	one
+	  
+	two
