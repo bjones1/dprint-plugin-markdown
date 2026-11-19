@@ -113,15 +113,23 @@ document's meaning in every container.
    `lineWidth`. Code blocks are never wrapped, so the code indent is unaffected.
    This was the problem found in PR #253.
 
-2. **Fall back to spaces instead of failing or padding.** When the start column
+2. **Fenced blocks and code text are not changed.** A fenced block has no code
+   indent: every leading space or tab on its lines (after the container
+   prefix) belongs to the code itself, and the same is true of the code text
+   after an indented block's code indent. Rewriting that whitespace would
+   change the code, which matters for whitespace-sensitive languages such as
+   Python or Makefiles. Re-indenting code is the job of the embedded code
+   formatter, which `codeBlock.useTabs` already controls.
+
+3. **Fall back to spaces instead of failing or padding.** When the start column
    is not a multiple of 4, writing spaces preserves meaning. Padding the prefix
    to the next tab stop would change list and block quote output that this
    option is not supposed to touch.
 
-3. **Always normalize.** Like the rest of dprint, the output depends only on the
+4. **Always normalize.** Like the rest of dprint, the output depends only on the
    configuration, never on whether the input used tabs or spaces.
 
-4. **Opt-in only.** The option is not inherited from global `useTabs`, because
+5. **Opt-in only.** The option is not inherited from global `useTabs`, because
    some non-CommonMark renderers mishandle tab-indented code. Users who share
    a global `useTabs: true` with other plugins should not get this change
    silently.
