@@ -201,6 +201,9 @@ pub struct Context<'a> {
   pub indent_level: u32,
   /// The current indentation level within the file being formatted.
   pub raw_indent_level: u32,
+  /// Indentation the printer writes that `indent_level` leaves out, which is
+  /// that of footnote bodies.
+  pub footnote_indent_level: u32,
   is_in_list_count: u32,
   /// The indentation level each surrounding block quote started at, from outermost to innermost.
   block_quote_base_indents: Vec<u32>,
@@ -281,6 +284,7 @@ impl<'a> Context<'a> {
       footnote_labels,
       indent_level: 0,
       raw_indent_level: 0,
+      footnote_indent_level: 0,
       is_in_list_count: 0,
       block_quote_base_indents: Vec::new(),
       block_quote_content_starts: Vec::new(),
@@ -504,6 +508,27 @@ impl<'a> Context<'a> {
   /// within, which is what the list items inside that quote write.
   pub fn indent_within_block_quote(&self) -> u32 {
     self.indent_level - self.block_quote_base_indents.last().copied().unwrap_or(0)
+  }
+
+  /// The column the content of what's being generated starts at: the
+  /// indentation of the lists, definitions and footnotes it is within plus the
+  /// markers of the block quotes around it. Those are written one `>` per
+  /// block quote with a single space after the last (`>> text`), and with a
+  /// space before the indentation that separates two of them (`>   > text`),
+  /// as `gen_block_quote_markers` writes them.
+  pub fn content_column(&self) -> u32 {
+    let block_quote_markers = match self.block_quote_depth() as u32 {
+      0 => 0,
+      depth => {
+        let separations = self
+          .block_quote_base_indents
+          .windows(2)
+          .filter(|pair| pair[1] > pair[0])
+          .count() as u32;
+        depth + 1 + separations
+      }
+    };
+    self.indent_level + self.footnote_indent_level + block_quote_markers
   }
 
   /// Writes out the text decorations within with the characters they were

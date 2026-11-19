@@ -88,6 +88,7 @@ pub fn resolve_config(
     code_block_raise_syntax_errors: get_value(&mut config, "codeBlock.raiseSyntaxErrors", false, &mut diagnostics),
     code_block_preserve_indentation: get_value(&mut config, "codeBlock.preserveIndentation", false, &mut diagnostics),
     code_block_preserve_blank_lines: get_value(&mut config, "codeBlock.preserveBlankLines", false, &mut diagnostics),
+    indented_code_use_tabs: get_value(&mut config, "indentedCode.useTabs", false, &mut diagnostics),
     code_block_use_tabs: get_nullable_value(&mut config, "codeBlock.useTabs", &mut diagnostics),
     code_block_indent_width: get_nullable_value(&mut config, "codeBlock.indentWidth", &mut diagnostics),
     html_skip_format: get_value(&mut config, "html.skipFormat", false, &mut diagnostics),

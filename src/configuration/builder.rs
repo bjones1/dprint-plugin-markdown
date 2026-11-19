@@ -156,6 +156,14 @@ impl ConfigurationBuilder {
     self.insert("codeBlock.preserveBlankLines", value.into())
   }
 
+  /// Whether to write the indentation that marks an indented code block as a
+  /// tab rather than four spaces. A block whose indentation would not start at
+  /// a tab stop (a multiple of 4 columns) is still written with spaces.
+  /// Default: `false`
+  pub fn indented_code_use_tabs(&mut self, value: bool) -> &mut Self {
+    self.insert("indentedCode.useTabs", value.into())
+  }
+
   /// Whether the plugin that formats the code within a code block should use
   /// tabs, overriding that plugin's own `useTabs` configuration.
   /// Default: not overridden
@@ -298,6 +306,7 @@ mod tests {
       .code_block_raise_syntax_errors(true)
       .code_block_preserve_indentation(true)
       .code_block_preserve_blank_lines(true)
+      .indented_code_use_tabs(true)
       .code_block_use_tabs(true)
       .code_block_indent_width(2)
       .html_skip_format(true)
@@ -314,7 +323,7 @@ mod tests {
       .ignore_end_directive("test");
 
     let inner_config = config.get_inner_config();
-    assert_eq!(inner_config.len(), 31);
+    assert_eq!(inner_config.len(), 32);
     let diagnostics = resolve_config(inner_config, &Default::default()).diagnostics;
     assert_eq!(diagnostics.len(), 0);
   }

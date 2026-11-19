@@ -55,6 +55,10 @@ pub struct Configuration {
   pub code_block_preserve_indentation: bool,
   #[serde(rename = "codeBlock.preserveBlankLines")]
   pub code_block_preserve_blank_lines: bool,
+  /// Whether to write the indentation that marks an indented code block as a
+  /// tab, where the block starts at a tab stop, rather than as four spaces.
+  #[serde(rename = "indentedCode.useTabs")]
+  pub indented_code_use_tabs: bool,
   /// Whether to override the `useTabs` configuration of the plugin that
   /// formats the code within a code block. `None` leaves it to that plugin.
   #[serde(rename = "codeBlock.useTabs")]
