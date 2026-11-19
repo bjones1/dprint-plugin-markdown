@@ -1039,7 +1039,11 @@ fn gen_code_block<'a>(code_block: &CodeBlock<'a>, position: NodePosition, contex
   // indentation of the lines after the first can match the first line's
   let lines_up = position.marker.is_none_or(|marker| marker.lines_up);
   let is_fenced = code_block.is_fenced() || position.after_list || !lines_up;
-  let indent_level = if is_fenced { 0 } else { 4 };
+  // a tab only reaches four columns past where it starts when it starts at a
+  // tab stop, so the indentation is written as one only there
+  let indent_with_tab =
+    !is_fenced && context.configuration.indented_code_use_tabs && context.content_column().is_multiple_of(4);
+  let indent_level = if is_fenced || indent_with_tab { 0 } else { 4 };
 
   // header
   if is_fenced {
@@ -1057,13 +1061,28 @@ fn gen_code_block<'a>(code_block: &CodeBlock<'a>, position: NodePosition, contex
   }
 
   // body
-  if !is_fenced && position.marker.is_some() {
-    // the item's marker took the place of the first line's indentation, which
-    // the printer only writes out for the lines after it
-    items.push_sc(sc!("    "));
-  }
-  if !code_text.is_empty() {
-    items.extend(ir_helpers::gen_from_string(context.arena, code_text));
+  if indent_with_tab {
+    // each line that holds anything starts with the tab, while an empty line
+    // stays empty just as it does when the printer writes the indentation
+    for (i, line) in code_text.split('\n').enumerate() {
+      let line = line.strip_suffix('\r').unwrap_or(line);
+      if i > 0 {
+        items.push_signal(Signal::NewLine);
+      }
+      if !line.is_empty() {
+        items.push_signal(Signal::Tab);
+        items.extend(ir_helpers::gen_from_string(context.arena, line));
+      }
+    }
+  } else {
+    if !is_fenced && position.marker.is_some() {
+      // the item's marker took the place of the first line's indentation, which
+      // the printer only writes out for the lines after it
+      items.push_sc(sc!("    "));
+    }
+    if !code_text.is_empty() {
+      items.extend(ir_helpers::gen_from_string(context.arena, code_text));
+    }
   }
 
   // footer
@@ -2240,7 +2259,10 @@ fn gen_footnote_definition<'a>(
     bumpalo::format!(in context.arena.bump(), "[^{}]: ", footnote_definition.name.trim_matches(WHITESPACE))
       .into_bump_str(),
   );
-  items.extend(with_indent_times(gen_nodes(footnote_definition.children, context), 4));
+  context.footnote_indent_level += 4;
+  let children = gen_nodes(footnote_definition.children, context);
+  context.footnote_indent_level -= 4;
+  items.extend(with_indent_times(children, 4));
   items
 }
 

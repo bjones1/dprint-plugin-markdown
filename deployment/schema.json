@@ -91,6 +91,7 @@
         "codeBlock.raiseSyntaxErrors",
         "codeBlock.preserveIndentation",
         "codeBlock.preserveBlankLines",
+        "indentedCode.useTabs",
         "codeBlock.useTabs",
         "codeBlock.indentWidth",
         "tags"
@@ -294,6 +295,18 @@
       }, {
         "const": false,
         "description": "Removes common leading whitespace from code block contents."
+      }]
+    },
+    "indentedCode.useTabs": {
+      "description": "Whether to write the indentation that marks an indented code block as a tab rather than four spaces. A block whose indentation would not start at a tab stop (a multiple of 4 columns) is still written with spaces.",
+      "type": "boolean",
+      "default": false,
+      "oneOf": [{
+        "const": true,
+        "description": "Writes a tab where the block starts at a tab stop."
+      }, {
+        "const": false,
+        "description": "Always writes four spaces."
       }]
     },
     "codeBlock.preserveBlankLines": {
@@ -571,6 +584,16 @@
           "cargo build",
           "",
           "```"
+        ]
+      }
+    },
+    "indentedCode.useTabs": {
+      "$ref": "#/definitions/indentedCode.useTabs",
+      "x-example": {
+        "input": [
+          "Some text.",
+          "",
+          "    cargo build"
         ]
       }
     },

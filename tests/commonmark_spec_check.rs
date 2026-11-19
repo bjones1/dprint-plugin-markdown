@@ -14,7 +14,8 @@
 //! Set `SPEC_REPORT=<file>` to write the failures out in full, `SPEC_STRICT=1`
 //! to report a formatted example that only differs in whitespace, and
 //! `SPEC_PRESERVE_CODE=1` to turn on the code block options that would
-//! otherwise change what a code block holds.
+//! otherwise change what a code block holds, and `SPEC_INDENTED_CODE_TABS=1` to
+//! write indented code blocks with tabs.
 //!
 //! The spec's examples aren't the only markdown this reads: set
 //! `COMMONMARK_SPEC=<file>` to a file of the same shape (`markdown`, `html`,
@@ -62,6 +63,11 @@ fn checks_the_commonmark_spec() {
     builder
       .code_block_preserve_indentation(true)
       .code_block_preserve_blank_lines(true);
+  }
+  // `SPEC_INDENTED_CODE_TABS` writes indented code blocks with tabs, which
+  // has to keep every example meaning what it did
+  if std::env::var("SPEC_INDENTED_CODE_TABS").is_ok() {
+    builder.indented_code_use_tabs(true);
   }
   let config = builder.build();
 
